@@ -11,4 +11,4 @@ bundle exec middleman server
 bundle exec middleman article TITLE
 
 ## build
-bundle exec middleman build
+bundle exec rake build
