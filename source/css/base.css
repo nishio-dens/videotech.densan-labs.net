@@ -1,0 +1,44 @@
+body {
+  font-family: Helvetica , "游ゴシック" , "Yu Gothic" , sans-serif;
+  font-size: 14px;
+}
+
+.navbar-brand {
+  padding-left: 0 !important;
+}
+
+h1 {
+  font-size: 220%;
+}
+
+
+h2 {
+  font-size: 180%;
+}
+
+.sidebar-head-text {
+  margin-bottom: 10px;
+  font-size: 160%;
+}
+
+.masthead {
+  height: 80px;
+  margin-bottom: 30px !important;
+}
+
+p {
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+img {
+  max-width: 100%;
+}
+
+.article-main-contents h2 {
+  margin-top: 30px;
+}
+
+.article-main-contents h3 {
+  margin-top: 30px;
+}

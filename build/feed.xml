@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Survey of Video Technologies</title>
+  <subtitle>動画、字幕、その他周辺技術についての技術調査メモ</subtitle>
+  <id>http://videotech.densan-labs.net/articles</id>
+  <link href="http://videotech.densan-labs.net/articles"/>
+  <link href="http://videotech.densan-labs.net/feed.xml" rel="self"/>
+  <updated>2017-08-27T22:59:00+09:00</updated>
+  <author>
+    <name>nishio-dens</name>
+  </author>
+  <entry>
+    <title>ffmpeg encoding test</title>
+    <link rel="alternate" href="http://videotech.densan-labs.net/articles/2017/08/27/ffmpeg-test.html"/>
+    <id>http://videotech.densan-labs.net/articles/2017/08/27/ffmpeg-test.html</id>
+    <published>2017-08-27T22:59:00+09:00</published>
+    <updated>2017-08-27T23:00:27+09:00</updated>
+    <author>
+      <name>nishio-dens</name>
+    </author>
+    <content type="html">&lt;p&gt;これはテスト記事です&lt;/p&gt;
+</content>
+  </entry>
+  <entry>
+    <title>日本語テスト</title>
+    <link rel="alternate" href="http://videotech.densan-labs.net/articles/2012/01/01/example-article.html"/>
+    <id>http://videotech.densan-labs.net/articles/2012/01/01/example-article.html</id>
+    <published>2012-01-01T00:00:00+09:00</published>
+    <updated>2017-08-27T22:48:53+09:00</updated>
+    <author>
+      <name>nishio-dens</name>
+    </author>
+    <content type="html">&lt;p&gt;This is an example article. You probably want to delete it and write your own articles!
+日本語テスト&lt;/p&gt;
+
+&lt;h2 id="section"&gt;更にテスト&lt;/h2&gt;
+
+&lt;p&gt;日本語テスト 日本語テスト 日本語テスト&lt;/p&gt;
+
+&lt;p&gt;ABCD&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="/articles/image/testbb.jpg" alt="testbb" /&gt;&lt;/p&gt;
+
+&lt;h2 id="code"&gt;Code&lt;/h2&gt;
+
+&lt;p&gt;&lt;code&gt;ruby:qiita.rb
+puts 'The best way to log and share programmers knowledge.'
+&lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;__ か ** で囲むとHTMLのstrongタグになります。Qiitaでは&lt;strong&gt;太字&lt;/strong&gt;になります。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;[ ] タスク1&lt;/li&gt;
+  &lt;li&gt;[x] タスク2&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;引用は
+こうです&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;hr /&gt;
+
+&lt;p&gt;テスト&lt;/p&gt;
+
+&lt;p&gt;&lt;a href="URL" title="http://densan-labs.net"&gt;リンクテキスト&lt;/a&gt;
+または内部リンクとして
+&lt;a href="/articles/2012/01/01/example-article.html"&gt;リンク内部&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;テストとは&lt;sup id="fnref:1"&gt;&lt;a href="#fn:1" class="footnote"&gt;1&lt;/a&gt;&lt;/sup&gt; ちゃんとかけるです&lt;/p&gt;
+
+&lt;div class="footnotes"&gt;
+  &lt;ol&gt;
+    &lt;li id="fn:1"&gt;
+      &lt;p&gt;test&amp;nbsp;&lt;a href="#fnref:1" class="reversefootnote"&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
+    &lt;/li&gt;
+  &lt;/ol&gt;
+&lt;/div&gt;
+</content>
+  </entry>
+</feed>
