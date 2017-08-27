@@ -66,6 +66,7 @@ end
 # end
 
 # Build-specific configuration
+set :build_dir, 'docs'
 configure :build do
   # Minify CSS on build
   # activate :minify_css
