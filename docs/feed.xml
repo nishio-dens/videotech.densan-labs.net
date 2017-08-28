@@ -5,77 +5,274 @@
   <id>http://videotech.densan-labs.net/articles</id>
   <link href="http://videotech.densan-labs.net/articles"/>
   <link href="http://videotech.densan-labs.net/feed.xml" rel="self"/>
-  <updated>2017-08-27T22:59:00+09:00</updated>
+  <updated>2017-08-28T21:01:00+09:00</updated>
   <author>
     <name>nishio-dens</name>
   </author>
   <entry>
-    <title>ffmpeg encoding test</title>
-    <link rel="alternate" href="http://videotech.densan-labs.net/articles/2017/08/27/ffmpeg-test.html"/>
-    <id>http://videotech.densan-labs.net/articles/2017/08/27/ffmpeg-test.html</id>
-    <published>2017-08-27T22:59:00+09:00</published>
-    <updated>2017-08-27T23:00:27+09:00</updated>
+    <title>YCbCrとクロマサブサンプリング</title>
+    <link rel="alternate" href="http://videotech.densan-labs.net/articles/2017/08/28/yuv444-422-420.html"/>
+    <id>http://videotech.densan-labs.net/articles/2017/08/28/yuv444-422-420.html</id>
+    <published>2017-08-28T21:01:00+09:00</published>
+    <updated>2017-08-28T21:01:40+09:00</updated>
     <author>
       <name>nishio-dens</name>
     </author>
-    <content type="html">&lt;p&gt;これはテスト記事です&lt;/p&gt;
-</content>
-  </entry>
-  <entry>
-    <title>日本語テスト</title>
-    <link rel="alternate" href="http://videotech.densan-labs.net/articles/2012/01/01/example-article.html"/>
-    <id>http://videotech.densan-labs.net/articles/2012/01/01/example-article.html</id>
-    <published>2012-01-01T00:00:00+09:00</published>
-    <updated>2017-08-27T22:48:53+09:00</updated>
-    <author>
-      <name>nishio-dens</name>
-    </author>
-    <content type="html">&lt;p&gt;This is an example article. You probably want to delete it and write your own articles!
-日本語テスト&lt;/p&gt;
+    <content type="html">&lt;p&gt;動画を出力する際、出力形式としてYUV444やYUV422, YUV420 などを選択することがあるが、これらは一体何を意味しているのだろうか。
+YUV420を選択することで、データ量は444の場合に比べて小さく抑えられる。
+これは、クロマサブサンプリングと呼ばれる技術が関係している。&lt;/p&gt;
 
-&lt;h2 id="section"&gt;更にテスト&lt;/h2&gt;
+&lt;p&gt;クロマサブサンプリングは、画像をYCbCr(YUV)に変換後、色差成分を間引くことによって画像のデータ量を削減する技術である。
+今回はこの技術について調査したことを以下にまとめる。&lt;/p&gt;
 
-&lt;p&gt;日本語テスト 日本語テスト 日本語テスト&lt;/p&gt;
+&lt;h2 id="part-2a064f37de75b4c9"&gt;はじめに&lt;/h2&gt;
 
-&lt;p&gt;ABCD&lt;/p&gt;
+&lt;p&gt;動画は画像の集まりであり、画像一枚の色を表現する方式として 主にYCbCr方式 が用いられる。 
+色の表現法として有名なのはRGB方式であるが、これはRed, Green, Blueの３つの原色を混ぜ合わせることで
+色を表現する手法である。
+対して、YCbCr方式では、輝度成分のYと青から輝度を引いた青色差Cb、赤から輝度を引いた赤色差Crと3種類で色を表現する。&lt;/p&gt;
 
-&lt;p&gt;&lt;img src="/articles/image/testbb.jpg" alt="testbb" /&gt;&lt;/p&gt;
+&lt;p&gt;MPEGなどの動画形式ではRGB(RGBA)方式は使わず、YCbCr方式で色情報を記録している。
+これは、YCbCrの方がRGBAで表現する場合に比べ、画像のデータ量削減が容易だからである。&lt;/p&gt;
 
-&lt;h2 id="code"&gt;Code&lt;/h2&gt;
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
 
-&lt;p&gt;&lt;code&gt;ruby:qiita.rb
-puts 'The best way to log and share programmers knowledge.'
-&lt;/code&gt;&lt;/p&gt;
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: center"&gt;RGB方式&lt;/th&gt;
+&lt;th style="text-align: center"&gt;YCbCr方式&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/rgb_color.jpg" alt="RGB" /&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/yuv_color.png" alt="YUV" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
 
-&lt;p&gt;__ か ** で囲むとHTMLのstrongタグになります。Qiitaでは&lt;strong&gt;太字&lt;/strong&gt;になります。&lt;/p&gt;
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;
+画像は [Wikipedia YUV] 及び [Wikipedia RGB] より引用
+&lt;/center&gt;&lt;/p&gt;
+
+&lt;h2 id="rgb-ycbcr"&gt;RGB と YCbCr&lt;/h2&gt;
+
+&lt;p&gt;RGB と YCbCr は 以下の計算式で相互に変換が可能である(以下式は [Wikipedia YUV] より引用)。&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre class="highlight c"&gt;&lt;code&gt;&lt;span class="n"&gt;Y&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;299&lt;/span&gt; &lt;span class="err"&gt;×&lt;/span&gt; &lt;span class="n"&gt;R&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;587&lt;/span&gt; &lt;span class="err"&gt;×&lt;/span&gt; &lt;span class="n"&gt;G&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;114&lt;/span&gt; &lt;span class="err"&gt;×&lt;/span&gt; &lt;span class="n"&gt;B&lt;/span&gt;
+&lt;span class="n"&gt;Cb&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;168736&lt;/span&gt; &lt;span class="err"&gt;×&lt;/span&gt; &lt;span class="n"&gt;R&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;331264&lt;/span&gt; &lt;span class="err"&gt;×&lt;/span&gt; &lt;span class="n"&gt;G&lt;/span&gt; &lt;span class="o"&gt;+&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;5&lt;/span&gt; &lt;span class="err"&gt;×&lt;/span&gt; &lt;span class="n"&gt;B&lt;/span&gt;
+&lt;span class="n"&gt;Cr&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;5&lt;/span&gt; &lt;span class="err"&gt;×&lt;/span&gt; &lt;span class="n"&gt;R&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;418688&lt;/span&gt; &lt;span class="err"&gt;×&lt;/span&gt; &lt;span class="n"&gt;G&lt;/span&gt; &lt;span class="o"&gt;-&lt;/span&gt; &lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;.&lt;/span&gt;&lt;span class="mi"&gt;081312&lt;/span&gt; &lt;span class="err"&gt;×&lt;/span&gt; &lt;span class="n"&gt;B&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;輝度Y には G の成分が多く含まれており、B の成分が少ないことがわかる。
+人間の目には緑色G は明るく感じ、青色Bは暗く感じることから、このような変換式になっている。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="/articles/image/rgb_color_diff.png" alt="RGB" /&gt;&lt;/p&gt;
+
+&lt;p&gt;図: RGB 比較 緑は明るく感じ、青は暗く感じる
+&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;YCbCr と似た表現に YUV が存在する。YUVも YCbCr 同様に 輝度(Y)と色差(U,V) で色を表現する。
+ffmpegでは、YCbCr を YUV と表現していたりする。厳密には計算式が異なるため違うものであるが、この場合は同じようなものとして考えて問題ない。&lt;/p&gt;
+
+&lt;p&gt;その他、YPbPr などの色表現が存在するが、今回はYCbCr での説明を行う。&lt;/p&gt;
+
+&lt;h2 id="part-9db78549f46b3ed4"&gt;クロマサブサンプリング&lt;/h2&gt;
+
+&lt;p&gt;動画は画像の連続であるが、画像の連続としてそのまま保存しておくと動画の容量が大きくなってしまう。
+動画のデータ量を削減するためには、ある程度保持している情報量を落とす必要がある。&lt;/p&gt;
+
+&lt;p&gt;mp3などの音声データは、人に聞こえづらい(人間の可聴域を超えるような）領域の音をカットすることによってデータ量の削減を行っている。
+画像でも同様に、&lt;strong&gt;人には認識が難しい領域をカットすることで同様にデータ量削減が可能&lt;/strong&gt;と考えられる。
+動画の容量を削減するための技術は多く存在するが、今回はその中から単一画像のデータ量を削減するための方法の一つ、クロマサブサンプリングを取り上げる。&lt;/p&gt;
+
+&lt;p&gt;人には輝度の変化には敏感だが、色の変化には鈍感であるという性質がある。
+これは目の構造によるものだが、この性質を利用すれば人間に認識しづらい領域をカットすることでデータ量を削減できる。
+画像をRGBではなくYCbCr形式で表現したのは、この性質を利用するためである。
+すなわち、輝度Yの成分は削減できないにしても、色差Cb/Crの成分ならある程度間引いてしまっても、人には同じ画像に見えるのである。&lt;/p&gt;
+
+&lt;p&gt;輝度Yはルミナンス、色差Cb/Crはクロマとも呼ばれる。
+クロマをサンプリング、すなわち色成分をある程度間引くことによってデータ量の削減を行うことを、クロマサブサンプリングと呼ぶ。&lt;/p&gt;
+
+&lt;h2 id="4-4-4-4-2-2-4-2-0-4-1-1"&gt;4:4:4 4:2:2 4:2:0 4:1:1&lt;/h2&gt;
+
+&lt;p&gt;クロマ(色成分）の削減の仕方にはいくつかの方式があり、4:2:2、4:2:0、4:1:1 といったものが存在する。&lt;/p&gt;
+
+&lt;h3 id="4-4-4"&gt;4:4:4&lt;/h3&gt;
+
+&lt;p&gt;まずはじめに4:4:4フォーマットについて述べる。
+4:4:4 は輝度信号1画素あたりに8ビット割りあて、色差信号それぞれにも8ビットずつ割り当てる (合計で24ビットとなる）。
+RGBの場合はR,G,Bそれぞれに8ビットずつデータを割り当てているため、4:4:4 の場合は YUV と RGB ともに同じ表現が可能である。
+この状態は無圧縮の状態であり、もっとも高品質な画像といえる。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="/articles/image/red_444.png" alt="4:4:4" /&gt;&lt;/p&gt;
+
+&lt;p&gt;図: 4:4:4 [RED Chroma] より引用&lt;/p&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;h3 id="4-2-2"&gt;4:2:2&lt;/h3&gt;
+
+&lt;p&gt;4:2:2 フォーマットでは、色差信号を水平方向に輝度の半分まで落とす。
+間引いた色差成分は、となりの成分と同じ色とする。
+これにより、色差のデータ量を半分まで落とすことが可能である。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="/articles/image/red_422.png" alt="4:2:2" /&gt;&lt;/p&gt;
+
+&lt;p&gt;図: 4:2:2 [RED Chroma] より引用&lt;/p&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;h3 id="4-2-0"&gt;4:2:0&lt;/h3&gt;
+
+&lt;p&gt;4:2:0 フォーマットでは、色差信号を水平方向に輝度の半分まで落とした後、
+さらに垂直方向にも色差信号を半分まで落とす。
+これにより、色差のデータ量は4分の1まで落とすことが可能である。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="/articles/image/red_420.png" alt="4:2:0" /&gt;&lt;/p&gt;
+
+&lt;p&gt;図: 4:2:0 [RED Chroma] より引用&lt;/p&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;h3 id="4-1-1"&gt;4:1:1&lt;/h3&gt;
+
+&lt;p&gt;4:1:1 フォーマットは4:2:0同様、色差のデータ量を4分の1にまで落とす。
+ただし、横方向に4つ分間引く点が4:2:0 と異なる。
+4:2:0 に比べ横方向の色が多く間引かれているため、色がぼけた見た目となりやすい。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="/articles/image/red_411.png" alt="4:1:1" /&gt;&lt;/p&gt;
+
+&lt;p&gt;図: 4:1:1 [RED Chroma] より引用&lt;/p&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;h2 id="part-31f98dfdd947d3b9"&gt;サンプリングによる影響&lt;/h2&gt;
+
+&lt;p&gt;クロマのサンプリングを行うことで、細かな色の表現は失われてしまう。
+4:4:4, 4:2:2, 4:2:0, 4:1:1 の色の変化について、以下画像がわかりやすい。
+輝度は同じであるが、色差のサンプリングの仕方が異なる。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="/articles/image/wikipedia_chroma_sampling.png" alt="Chroma Subsampling" /&gt;&lt;/p&gt;
+
+&lt;p&gt;図: クロマサブサンプリングによる影響 [Wikipedia Chroma] より引用&lt;/p&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;図の右側4:4:4 をオリジナル画像として、4:2:2、4:2:0、4:1:1 を見比べると、
+元の画像とは色合いが少しずつ変わってしまっていることがわかる。&lt;/p&gt;
+
+&lt;h2 id="part-571ed934a8b8a811"&gt;サンプリング後の画像比較&lt;/h2&gt;
+
+&lt;p&gt;クロマサブサンプリングによって色差成分を間引いたが、見た目の違和感はないのだろうか。&lt;/p&gt;
+
+&lt;p&gt;1 pixel 毎に色が変わるような画像(例えばグラディエーションなど）であれば、サブサンプリングを行うことによって
+違和感のある画像ができあがる可能性がある。
+しかし、実際の画像は色の変化はそこまで大きくないものが多いため、サブサンプリングを実施しても見た目は変わっていないように見える。&lt;/p&gt;
+
+&lt;p&gt;サブサンプリングの比較画像として、[EIZO Technical Review] にある画像がわかりやすい。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: center"&gt;4:4:4(Original)&lt;/th&gt;
+&lt;th style="text-align: center"&gt;4:2:2&lt;/th&gt;
+&lt;th style="text-align: center"&gt;4:1:1&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/eizo444.png" alt="444" /&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/eizo422.png" alt="422" /&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/eizo411.png" alt="411" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p&gt;図: サンプリング後の画像比較 [EIZO Technical Review] より引用&lt;/p&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;拡大して見ると、4:4:4 に比べて 4:2:2 では色の境界がぼやけたような印象となっている。
+4:1:1 では服の色と肌の色が混ざってしまい、若干違和感はでてしまっている。
+しかし遠目から見る分には、全体的に画像の劣化は少ないように見え、色差成分を間引いても大きな問題はないようにみえる。&lt;/p&gt;
+
+&lt;p&gt;逆に輝度成分を間引いたらどのように見えるか。これも [EIZO Technical Review] に紹介されていたので以下に引用する。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: center"&gt;4:4:4(Original)&lt;/th&gt;
+&lt;th style="text-align: center"&gt;2:2:2(輝度成分も半分にする)&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/eizo444.png" alt="444" /&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/eizo222.png" alt="222" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p&gt;図: 輝度成分も半分にした場合 [EIZO Technical Review] より引用&lt;/p&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;輝度を間引くと、全体的にモザイクがかかったような見た目となってしまい違和感が大きい。&lt;/p&gt;
+
+&lt;h2 id="part-1e9aeb12bbadad5d"&gt;クロマサブサンプリングの使い所&lt;/h2&gt;
+
+&lt;p&gt;クロマサブサンプリングにより、画像や動画のデータ量は大きく削減できる。
+一方、サンプリングにより元の動画の鮮やかな表現やディテールは変化してしまうこともわかった。&lt;/p&gt;
+
+&lt;p&gt;コンテンツ制作時にはYUV420やYUV411の利用は避けるべきである。
+ディテールは変わってしまうのもそうだが、何度も変換をかけていくうちに色合いがどんどん変わっていってしまう可能性がある。
+YUV422では大きな劣化は起こらず、かつデータ量も削減できるという利点がある。
+ただし、劣化が全くないというわけではない。
+コンテンツの品質が気になる場合は(データ量が大きくなるかつ機材が高いという欠点があるものの）YUV444を利用すべきである。&lt;/p&gt;
+
+&lt;p&gt;放送用素材は主に4:2:2で制作されている。
+テレビ放送時やBD/DVDでは4:2:0で動画が配信されることとなる。&lt;/p&gt;
+
+&lt;h2 id="part-37868fa865b7179"&gt;まとめ&lt;/h2&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;[ ] タスク1&lt;/li&gt;
-  &lt;li&gt;[x] タスク2&lt;/li&gt;
+&lt;li&gt;クロマサブサンプリングは、画像のデータ量を手軽に削減できる手法である&lt;/li&gt;
+&lt;li&gt;画像のデータ量が減れば、動画のデータ量も削減できる&lt;/li&gt;
+&lt;li&gt;画像をYCbCrに変換後、ルミナンス(輝度Y)成分はそのままでクロマ(色差CbCr)を間引くことによってデータ量を削減する&lt;/li&gt;
+&lt;li&gt;人間の目は輝度に敏感だが色差には鈍感のため、色差を多少間引いても画像の品質に違いはないようにみえる&lt;/li&gt;
+&lt;li&gt;4:4:4 は 最も高品質で、YUV 4:2:2、4:2:0/4:1:1 という品質の順になる&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;blockquote&gt;
-  &lt;p&gt;引用は
-こうです&lt;/p&gt;
-&lt;/blockquote&gt;
+&lt;h2 id="part-3786edb37bd951e"&gt;疑問点&lt;/h2&gt;
 
-&lt;hr /&gt;
+&lt;p&gt;ここまでまとめたが、個人的に以下疑問が残る。詳しく調べられていないので時間があるときに調査しようと思う。&lt;/p&gt;
 
-&lt;p&gt;テスト&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;なぜMPEGではYUVではなくYCbCrを用いるのか&lt;/li&gt;
+&lt;li&gt;YUV/YIQ/YCbCr/YPbPr などなど様々な種類がある。これらの違いと利点（そもそも利点があるのか）について&lt;/li&gt;
+&lt;li&gt;SD, HD によってもカラー表現を変えているといった記事を見たが、どういうことか&lt;/li&gt;
+&lt;li&gt;ITU-R BT.601, BT.709 などについて要調査。何を定義しているのか&lt;/li&gt;
+&lt;li&gt;MPEGではRGB &amp;lt;-&amp;gt; YUV 変換は相互に変換可能ではなく、誤差が生まれる。そもそもなぜYの値域を0〜255 ではなく、16〜235 に制限しているのか。0と255は別信号に利用しているとのことだが、そうであれば、1〜254でよいのではないか。&lt;/li&gt;
+&lt;/ul&gt;
 
-&lt;p&gt;&lt;a href="URL" title="http://densan-labs.net"&gt;リンクテキスト&lt;/a&gt;
-または内部リンクとして
-&lt;a href="/articles/2012/01/01/example-article.html"&gt;リンク内部&lt;/a&gt;&lt;/p&gt;
+&lt;h2 id="part-2bb23717e7a4fb4a"&gt;参考文献&lt;/h2&gt;
 
-&lt;p&gt;テストとは&lt;sup id="fnref:1"&gt;&lt;a href="#fn:1" class="footnote"&gt;1&lt;/a&gt;&lt;/sup&gt; ちゃんとかけるです&lt;/p&gt;
-
-&lt;div class="footnotes"&gt;
-  &lt;ol&gt;
-    &lt;li id="fn:1"&gt;
-      &lt;p&gt;test&amp;nbsp;&lt;a href="#fnref:1" class="reversefootnote"&gt;&amp;#8617;&lt;/a&gt;&lt;/p&gt;
-    &lt;/li&gt;
-  &lt;/ol&gt;
-&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;[Wikipedia YUV] Wikipedia YUV, &lt;a href="https://ja.wikipedia.org/wiki/YUV"&gt;https://ja.wikipedia.org/wiki/YUV&lt;/a&gt;, 2017/08/28 アクセス&lt;/li&gt;
+&lt;li&gt;[Wikipedia RGB] Wikipedia RGB, &lt;a href="https://ja.wikipedia.org/wiki/RGB"&gt;https://ja.wikipedia.org/wiki/RGB&lt;/a&gt;, 2017/08/28 アクセス&lt;/li&gt;
+&lt;li&gt;[RED Chroma] RED, クロマサンプリング技術, &lt;a href="http://jp.red.com/news/video-chroma-subsampling-jp"&gt;http://jp.red.com/news/video-chroma-subsampling-jp&lt;/a&gt;, 2017/08/28 アクセス&lt;/li&gt;
+&lt;li&gt;[Wikipedia Chroma] Wikipedia Chroma subsampling, &lt;a href="https://en.wikipedia.org/wiki/Chroma_subsampling"&gt;https://en.wikipedia.org/wiki/Chroma_subsampling&lt;/a&gt;, 2017/08/28 アクセス&lt;/li&gt;
+&lt;li&gt;[EIZO Technical Review] EIZO, Technical Overview RGBデータとYUVデータについて, &lt;a href="http://www.eizo.co.jp/products/tech/files/2010/WP10-009.pdf"&gt;http://www.eizo.co.jp/products/tech/files/2010/WP10-009.pdf&lt;/a&gt;, 2017/08/28 アクセス&lt;/li&gt;
+&lt;/ul&gt;
 </content>
   </entry>
 </feed>
