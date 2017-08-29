@@ -1,7 +1,7 @@
 ---
 
 title: トランスコード後のビデオの画質評価 PNSRとSSIM
-date: 2017-08-29 22:00 JST
+date: 2017-08-30 10:00 JST
 tags: SSIM, PNSR, ffmpeg
 
 ---
