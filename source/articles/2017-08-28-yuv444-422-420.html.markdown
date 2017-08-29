@@ -2,7 +2,7 @@
 
 title: YCbCrとクロマサブサンプリング
 date: 2017-08-28 21:01 JST
-tags: 画像圧縮
+tags: Compression, Video Compression
 
 ---
 
