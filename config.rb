@@ -26,6 +26,9 @@ Time.zone = 'Tokyo'
 activate :syntax
 set :markdown_engine, :redcarpet
 set :markdown, fenced_code_blocks: true, smartypants: true, with_toc_data: true, tables: true, autolink: true, gh_blockcode: true, toc_levels: [2,3]
+set :url_root, "http://videotech.densan-labs.net"
+
+activate :search_engine_sitemap
 
 activate :blog do |blog|
   # This will add a prefix to all links, template references and source paths

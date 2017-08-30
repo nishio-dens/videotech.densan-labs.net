@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="動画、字幕、その他周辺技術についての技術メモ">
+    <meta name="author" content="nishio-dens">
+
+		<title>
+				トランスコード後ビデオの画質評価とノイズ検出 | 
+			Survey of Video Technologies
+		</title>
+		<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/articles/feed.xml" />
+
+    <link href="/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/vendor/font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    <link href="/css/clean-blog.min.css" rel="stylesheet">
+    <link href="/css/base.css" rel="stylesheet">
+  </head>
+
+  <body>
+
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
+      <div class="container">
+        <a class="navbar-brand" href="/">Survey of Video Technologies</a>
+        <button class="navbar-toggler navbar-toggler-right" type="button" data-toggle="collapse" data-target="#navbarResponsive" aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation">
+          Menu
+          <i class="fa fa-bars"></i>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarResponsive">
+          <ul class="navbar-nav ml-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="/">Home</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/feed.xml">Feed</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <header class="masthead">
+      <div class="container">
+        <div class="row">
+        </div>
+      </div>
+    </header>
+
+    <article>
+      <div class="container">
+        <div class="row">
+          <div class="col-lg-9 col-md-10 mx-auto">
+            <div class="post-preview">
+              <h1 class="post-title">
+                トランスコード後ビデオの画質評価とノイズ検出
+              </h1>
+              <p class="post-meta">
+                Posted by <a href="https://github.com/nishio-dens" target="_blank">nishio-dens</a> on 2017-08-30 10:00:00 +0900 <br>
+                Keywords:
+                <a href="/articles/keywords/ssim.html">SSIM</a>, <a href="/articles/keywords/psnr.html">PSNR</a>, <a href="/articles/keywords/ffmpeg.html">ffmpeg</a>, <a href="/articles/keywords/noise.html">Noise</a>
+              </p>
+            </div>
+
+            <div class="article-main-contents">
+              <p>動画のトランスコード後に、もとの素材からどのくらい画質劣化が発生したのかを調べる方法について調べた。
+画質の評価方法にはいくつか種類があるが、今回はPSNRとSSIMを利用し映像劣化やノイズがどの程度検出できるのかについて検証した。</p>
+
+<p>検証の結果、SSIMやPSNRといった指標を活用することで、
+トランスコード後のノイズ（ブロックノイズやモスキートノイズ等）の検出が可能かもしれないということがわかった。</p>
+
+<h2 id="part-2a064f37de75b4c9">はじめに</h2>
+
+<p>ProResやHDxHDと言った中間コーデックは無圧縮の動画並みの品質を持っているが、そのまま配信するにはデータ量が大きすぎる。
+動画をエンドユーザに配信するためには、コンテンツをMPEG2やH.264といった配信用のフォーマットに変換する必要がある。</p>
+
+<p>MPEGやh264は編集には適さないが、高い映像品質を維持したままデータサイズを大幅に抑えることができるため、
+テレビ放送やBD/DVD、及びVODなどの動画配信サービスで利用されている。 
+これらのフォーマットでは、元の素材から人間にはわかりづらい領域のデータを削ったり、
+前後のフレームからの差分情報だけを保持するなどしてデータ量削減を行っている。</p>
+
+<p>データ量を抑えようとすればするほどより多くの情報を削るため、
+動画のトランスコードの仕方によっては目に見えて映像劣化がわかってしまう。
+これらの劣化は、ブロックノイズやモスキートノイズとなって映像に現れる。
+動きの早いシーンではフレーム間予測がうまく働かずにデータ量が増えてしまうが、
+映像に割り当てられるデータ量には上限があるため、こういったシーンではノイズがより多く発生する可能性がある。
+また色の移り変わりの激しい箇所やシーンでも同様にノイズが発生する可能性がある。</p>
+
+<p>今回はffmpeg及びPSNRとSSIMを使いトランスコード前の素材から、トランスコード後の映像がどの程度劣化したかを調べる方法を調査した。
+また、トランスコード後の動画のノイズ検出についての調査考察を行った。</p>
+
+<h2 id="s-n-psnr">ピークS/N比, PSNR</h2>
+
+<p>ピークS/N比はPSNR(Peak singal-to-noise Ratio)とも呼ばれるが、画質評価のための指標である。
+元の画像と圧縮後の画像を比較し、どの程度品質が劣化したのかを評価する。</p>
+
+<p>ピークS/N比の前に、単純なS/N比について説明する。
+S/N比とは信号(Signal)と雑音(Noise)の比率のことであり、以下の式で表される。P_s は 元の信号、P_n はノイズであり、結果の単位はdBで表される。</p>
+
+<p><center></p>
+
+<p><img src="/articles/image/snratio_wiki.png" alt="SN Ratio" /></p>
+
+<p>図: S/N比 [Wikipedia SN]より引用</p>
+
+<p></center></p>
+
+<p>S/N比を用いることで、雑音の影響がどの程度あるのかを評価することができる。
+雑音P_n が限りなく0に近い場合はノイズがほぼないということであり、この場合はS/N比は無限に近づく。
+すなわち、<strong>S/N比が大きければ大きいほど、ノイズが少ない</strong>ということである。</p>
+
+<p>次にピークS/N比について説明する。ピークS/N比は以下式で表される。</p>
+
+<p><center></p>
+
+<p><img src="/articles/image/psnr02.png" alt="PSNR" /></p>
+
+<p>図: ピークS/N比 [Wikipedia PSNR]より引用</p>
+
+<p></center></p>
+
+<p>ここでいうMAX_I は元(入力)の画像の最大画素値である。
+8ビットの画像ならば、MAX_Iは255の値を取ることとなる。
+MSEとは平均二乗誤差のことであるが、これは以下のように表現される。</p>
+
+<p><center></p>
+
+<p><img src="/articles/image/psnr01.png" alt="PSNR MSE" /></p>
+
+<p>図: ピークS/N比 MSE [Wikipedia PSNR]より引用</p>
+
+<p></center></p>
+
+<p>I(i,j)は入力画像の1画素(位置はX座標i, Y座標jとする）、K(i,j)は変換後画像の1画素を表す。
+話を単純にするために、モノクロ画像の画像を評価することを考える。
+I(i,j)は元の画像の1画素の明るさであり、例えば0-255までの値をとることとする。K(i,j)は変換後の1画素をあらわし、これも0-255までとることとする。
+I(i,j) から K(i,j) を引くことにより、元の画素との違い（すなわち誤差）がわかる。</p>
+
+<p>次に全体を二乗し1/mn をかけているが、これは平均二乗誤差である。
+平均二乗誤差は統計ではデータ全体のばらつきをもとめる際に利用される。
+詳しくは統計の書籍を参考にしていただきたいが、ばらつきを求める際、単純にすべての値を足し引きしていくと誤差が正しく検出できない。
+例えば、とある値は誤差+10 であり、別の値では誤差-10 と検出された場合、すべてを足し合わせると0となってしまい誤差は無いように見えてしまう。
+二乗し平均を取ることで、ばらつきを適切に検出することができる。</p>
+
+<p>これらを踏まえてもう一度PSNRの式をみてみる。
+S/N比のS(元の信号)にあたる部分が元の画像の最大画素値、そしてN(雑音)に当たる部分がもとの画像と出力後の画像との差分である。
+<strong>雑音が少なければ少ない(すなわち元の画像との差分が少ない）ほど、PSNRは大きな値を取る</strong>こととなる。</p>
+
+<p>[JIMA guideline]によると、PSNR の数値目安は以下のとおりである。</p>
+
+<p><center class="table"></p>
+
+<table><thead>
+<tr>
+<th style="text-align: center">PSNR [dB]</th>
+<th style="text-align: center">主観評価</th>
+</tr>
+</thead><tbody>
+<tr>
+<td style="text-align: center">40 〜 ∞</td>
+<td style="text-align: center">元の画像と圧縮画像の区別がつかない</td>
+</tr>
+<tr>
+<td style="text-align: center">30 〜 40</td>
+<td style="text-align: center">拡大すれば劣化がわかるレベル</td>
+</tr>
+<tr>
+<td style="text-align: center">30以下</td>
+<td style="text-align: center">明らかに劣化がわかる</td>
+</tr>
+</tbody></table>
+
+<p></center></p>
+
+<h3 id="psnr">PSNR の利点・欠点</h3>
+
+<p>PSNR の計算式をみてわかるが、画像全体のノイズ（画像劣化）を求めて値を算出している。
+すなわち、動画や画像が全体的に劣化している場合はPSNRが低い値がでることになる。
+<strong>全体的な画質の評価を行う場合、PSNRを用いるのは有効な手段</strong>である。</p>
+
+<p>一方、画像をみて劣化していると感じるのは、全体的なものよりも画像の部分的なノイズかもしれない。
+<strong>ブロックノイズやモスキートノイズが部分的に発生している場合は、PSNRではうまく劣化を検出できない</strong>こととなる。</p>
+
+<h2 id="structural-similarity-ssim">Structural Similarity, SSIM</h2>
+
+<p>PSNRでは、部分的な画像劣化の検出が難しいことがわかった。
+この欠点を解決した画質評価の手法が、SSIM (Structural Similarity) である。</p>
+
+<p>SSIMの計算式は以下のとおりであるが、これはPSNRと違い式をみただけでは直感的にはよくわからない。</p>
+
+<p><center></p>
+
+<p><img src="/articles/image/ssim_algo.png" alt="SSIM" /></p>
+
+<p>図: SSIM [Wikipedia SSIM]より引用</p>
+
+<p></center></p>
+
+<p>書いている本人も意味は理解はしていないので、詳しい説明は専門書を参考されたい。</p>
+
+<p>SSIMでは画像全体の誤差を利用するのではなく、元の画像と出力後の画像の局所的な領域の誤差を求めていく。
+そしてそれらの平均をとり最終的なSSIM値を求めている。
+これにより<strong>部分的にノイズが発生している場合もうまく検出が可能</strong>となる。</p>
+
+<p>SSIMの場合、値は1 〜 0の範囲を取ることとなる。
+1が最も高品質（画像劣化のない状態）であり、0が最も低品質である。
+[JIMA guideline]によると、SSIMの数値目安は以下のとおりである。</p>
+
+<p><center class="table"></p>
+
+<table><thead>
+<tr>
+<th style="text-align: center">SSIM</th>
+<th style="text-align: center">主観評価</th>
+</tr>
+</thead><tbody>
+<tr>
+<td style="text-align: center">0.98以上</td>
+<td style="text-align: center">元の画像と圧縮画像の区別がつかない</td>
+</tr>
+<tr>
+<td style="text-align: center">0.90 〜 0.98</td>
+<td style="text-align: center">拡大すれば劣化がわかるレベル</td>
+</tr>
+<tr>
+<td style="text-align: center">0.90以下</td>
+<td style="text-align: center">明らかに劣化がわかる</td>
+</tr>
+</tbody></table>
+
+<p></center></p>
+
+<h2 id="part-b68d988a5af376af">トランスコード後の動画のノイズ検知検証</h2>
+
+<p>PSNR, SSIMを用いることで、画像の劣化を評価できることがわかった。
+画像の劣化がわかるということは、すなわち動画トランスコード後のブロックノイズやモスキートノイズなども検出できる可能性がある。
+ここで、どの程度のノイズが検出できるのか検証を行ってみることとする。</p>
+
+<h3 id="part-8fb603fb65482652">検証用オリジナル動画</h3>
+
+<p>検証用の動画として、以下形式の動画を用意した。動画は 小林さんちのメイドラゴン [Maidragon] のOP部分を利用する。
+このアニメのOPは、俗に言うエンコ殺し動画であり、エンコードには向いていない(ノイズがでやすい）シーンが存在しているため、
+今回検証に利用することとした。
+なお、一部編集(シーンカットとTC焼き込み)を行ったためオリジナルの素材はProResとしているが、
+ProRes変換前はMPEG2であり、MPEG2の時点ですでにノイズが乗っている場合があるがご容赦いただきたい。</p>
+
+<ul>
+<li>Video: ProRes yuv422p10le progressive, 1280x720, 23.976fps</li>
+<li>Audio: pcm_s16le 48000 Hz, stereo</li>
+</ul>
+
+<p>オリジナル素材のビットレートは以下のとおりである。</p>
+
+<p><center></p>
+
+<p><img src="/articles/image/maidragon_original_prores_bitrate.png" alt="Maidragon OP Prores" /></p>
+
+<p>図: 検証用オリジナル素材ビットレート メイドラゴンOP Prores422 1280x720</p>
+
+<p></center></p>
+
+<p>各シーンは以下のとおりである。</p>
+
+<p><center class="table"></p>
+
+<table><thead>
+<tr>
+<th style="text-align: center">Frame</th>
+<th style="text-align: center">TC</th>
+<th style="text-align: center">シーン</th>
+<th style="text-align: center">備考</th>
+</tr>
+</thead><tbody>
+<tr>
+<td style="text-align: center">1</td>
+<td style="text-align: center">00:00:00:00</td>
+<td style="text-align: center"><img src="/articles/image/kobayashisan/original_scene/0.png" alt="scene0" /></td>
+<td style="text-align: center">スタート。シーンの移り変わりが激しいが大きな動きはなし。407fまで続く</td>
+</tr>
+<tr>
+<td style="text-align: center">407</td>
+<td style="text-align: center">00:00:16:23</td>
+<td style="text-align: center"><img src="/articles/image/kobayashisan/original_scene/407.png" alt="scene407" /></td>
+<td style="text-align: center">OPタイトル。動きは少ない</td>
+</tr>
+<tr>
+<td style="text-align: center">578</td>
+<td style="text-align: center">00:00:24:02</td>
+<td style="text-align: center"><img src="/articles/image/kobayashisan/original_scene/578.png" alt="scene578" /></td>
+<td style="text-align: center">シーン変化</td>
+</tr>
+<tr>
+<td style="text-align: center">796</td>
+<td style="text-align: center">00:00:33:04</td>
+<td style="text-align: center"><img src="/articles/image/kobayashisan/original_scene/1218.png" alt="scene1218" /></td>
+<td style="text-align: center">シーン変化、以後しばらくシーン変化が続く</td>
+</tr>
+<tr>
+<td style="text-align: center">1564</td>
+<td style="text-align: center">00:01:05:04</td>
+<td style="text-align: center"><img src="/articles/image/kobayashisan/original_scene/1564.png" alt="scene1564" /></td>
+<td style="text-align: center">エンコ殺しシーンスタート。キャラクタが残像を残しながら激しく動き回る。1729Frameまで続く</td>
+</tr>
+<tr>
+<td style="text-align: center">1729</td>
+<td style="text-align: center">00:01:12:01</td>
+<td style="text-align: center"><img src="/articles/image/kobayashisan/original_scene/1729.png" alt="scene1729" /></td>
+<td style="text-align: center">以降動きが激しいシーンとそうでないシーンがいくつか続きEND</td>
+</tr>
+</tbody></table>
+
+<p></center></p>
+
+<h3 id="part-544a576bcce70f53">検証用トランスコード後の動画</h3>
+
+<p>画質劣化を確認するための動画を用意する。</p>
+
+<ul>
+<li>Video: h264 yuv422p 1280x720, 23.976fps</li>
+<li>Audio: aac 48000 Hz, stereo</li>
+</ul>
+
+<p>H254でエンコードを行う場合、通常CRF(Constant Rate Factor)値を調整し画質調整を行うが、
+今回は以下4パターンのAVR(平均ビットレート)を指定し、画質の劣化を検証する。</p>
+
+<ol>
+<li>ABR 10000k</li>
+<li>ABR 3000k</li>
+<li>ABR 1000k</li>
+<li>ABR 500k</li>
+</ol>
+
+<p>ffmpeg では以下コマンドを利用することで、AVRを指定したエンコードが可能である。</p>
+
+<p><center></p>
+<div class="highlight"><pre class="highlight plaintext"><code>ffmpeg -i Maidragon_OP_Original.mov -b:v 10000k -c:v libx264 enc.mp4
+</code></pre></div>
+<p></center></p>
+
+<p>変換後の各フレーム毎のビットレートは以下のとおりである。</p>
+
+<p><center class="table"></p>
+
+<table><thead>
+<tr>
+<th style="text-align: center">Pattern</th>
+<th style="text-align: center">ABR</th>
+<th style="text-align: center">Bitrate Graph</th>
+</tr>
+</thead><tbody>
+<tr>
+<td style="text-align: center">1</td>
+<td style="text-align: center">10000k</td>
+<td style="text-align: center"><img src="/articles/image/kobayashisan/bt10000_enc.png" alt="10000" /></td>
+</tr>
+<tr>
+<td style="text-align: center">2</td>
+<td style="text-align: center">3000</td>
+<td style="text-align: center"><img src="/articles/image/kobayashisan/bt3000_enc.png" alt="3000" /></td>
+</tr>
+<tr>
+<td style="text-align: center">3</td>
+<td style="text-align: center">1000</td>
+<td style="text-align: center"><img src="/articles/image/kobayashisan/bt1000_enc.png" alt="1000" /></td>
+</tr>
+<tr>
+<td style="text-align: center">4</td>
+<td style="text-align: center">500</td>
+<td style="text-align: center"><img src="/articles/image/kobayashisan/bt500_enc.png" alt="500" /></td>
+</tr>
+</tbody></table>
+
+<p></center></p>
+
+<p>これらの素材に対し、各フレームごとのPSNRとSSIMを求める。</p>
+
+<p>PSNRはffmpegでは以下コマンドで求めることができる。</p>
+
+<p><center></p>
+<div class="highlight"><pre class="highlight plaintext"><code>ffmpeg -i オリジナル動画Path -i 変換後動画Path -filter_complex psnr=psnr.log -an -f null -
+</code></pre></div>
+<p></center></p>
+
+<p>SSIMはffmpegでは以下コマンドで求めることができる。</p>
+
+<p><center></p>
+<div class="highlight"><pre class="highlight plaintext"><code>ffmpeg -i オリジナル動画Path -i 変換後動画Path -filter_complex ssim=stats.txt -an -f null -
+</code></pre></div>
+<p></center></p>
+
+<h3 id="psnr-ssim">PSNR SSIM 検証結果</h3>
+
+<p>各ビットレートの動画のPSNRを出力した結果は以下のとおりである。</p>
+
+<p><center></p>
+
+<p><img src="/articles/image/kobayashisan/psnr_result_maidragon.png" alt="psnr result" /></p>
+
+<p>図: トランスコード後動画 各ビットレートのPSNR出力結果</p>
+
+<p></center></p>
+
+<p>PSNR 40dB以上は劣化がわからず、PSNR 30dBより下回った場合は、目に見えて劣化がわかるということである。
+よって、Bitrate 1000kとBitrate 500k の動画は品質が低いシーンが存在するということになる。</p>
+
+<p>次に、各ビットレートの動画のSSIMを出力した結果は以下のとおりである。</p>
+
+<p><center></p>
+
+<p><img src="/articles/image/kobayashisan/SSIM_results_maidragon.png" alt="ssim result" /></p>
+
+<p>図: トランスコード後動画 各ビットレートのSSIM出力結果</p>
+
+<p></center></p>
+
+<p>SSIMの場合、0.98以上は元画像と区別がつかず、0.90以下の場合は品質劣化が目に見えてわかるということである。
+よって、PSNR同様 Bitrate 1000kとBitrate 500k の動画は品質が低いシーンが存在するということになる。</p>
+
+<p>エンコ殺しのシーンは 65秒から7秒程度続くが、このあたりではPSNR/SSIM値が大きく下がっていることがわかる。
+その他シーンでも動きが大きかったりシーンの移り変わりのある箇所ではPSNR/SSIM値が下がっているようにみえる。</p>
+
+<p>ここで、いくつかスコアが良かったシーンと悪かったシーンのサムネイルを比較してみる。
+抽出箇所とPSNR, SSIMは以下のとおりである。</p>
+
+<p><center class="table"></p>
+
+<table><thead>
+<tr>
+<th>Frame</th>
+<th>TC</th>
+<th>実時間 (sec)</th>
+<th>1000k PSNR [dB]</th>
+<th>500k PSNR [dB]</th>
+<th>1000k SSIM</th>
+<th>500k SSIM</th>
+<th>備考</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>745</td>
+<td>00:00:31:01</td>
+<td>31.0727</td>
+<td>44.29</td>
+<td>41.28</td>
+<td>0.989092</td>
+<td>0.984172</td>
+<td>スコアが良かったシーン</td>
+</tr>
+<tr>
+<td>1680</td>
+<td>00:01:10:00</td>
+<td>70.070</td>
+<td>30.53</td>
+<td>26.85</td>
+<td>0.814229</td>
+<td>0.708519</td>
+<td>スコアが悪いシーン</td>
+</tr>
+<tr>
+<td>1931</td>
+<td>00:01:20:11</td>
+<td>80.538</td>
+<td>33.14</td>
+<td>29.88</td>
+<td>0.918353</td>
+<td>0.866596</td>
+<td>スコアがそこそこ悪いシーン</td>
+</tr>
+</tbody></table>
+
+<p></center></p>
+
+<p>抽出サムネイルは以下のとおりである。</p>
+
+<p><center class="table"></p>
+
+<table><thead>
+<tr>
+<th>実時間</th>
+<th>Bitrate</th>
+<th>サムネイル</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>31.0727</td>
+<td>オリジナル</td>
+<td><img src="/articles/image/kobayashisan/scene/original_745f_30sec.png" alt="orig31" /></td>
+</tr>
+<tr>
+<td>31.0727</td>
+<td>1000k</td>
+<td><img src="/articles/image/kobayashisan/scene/bt1000_745f_30sec.png" alt="bt1000" /></td>
+</tr>
+<tr>
+<td>31.0727</td>
+<td>500k</td>
+<td><img src="/articles/image/kobayashisan/scene/bt500_745f_30sec.png" alt="bt500" /></td>
+</tr>
+<tr>
+<td>70.070</td>
+<td>オリジナル</td>
+<td><img src="/articles/image/kobayashisan/scene/original_1680f_70sec.png" alt="orig31" /></td>
+</tr>
+<tr>
+<td>70.070</td>
+<td>1000k</td>
+<td><img src="/articles/image/kobayashisan/scene/bt1000_1680f_70sec.png" alt="bt1000" /></td>
+</tr>
+<tr>
+<td>70.070</td>
+<td>500k</td>
+<td><img src="/articles/image/kobayashisan/scene/bt500_1680f_70sec.png" alt="bt500" /></td>
+</tr>
+<tr>
+<td>80.538</td>
+<td>オリジナル</td>
+<td><img src="/articles/image/kobayashisan/scene/original_1931f_80sec.png" alt="orig31" /></td>
+</tr>
+<tr>
+<td>80.538</td>
+<td>1000k</td>
+<td><img src="/articles/image/kobayashisan/scene/bt1000_1931f_80sec.png" alt="bt1000" /></td>
+</tr>
+<tr>
+<td>80.538</td>
+<td>500k</td>
+<td><img src="/articles/image/kobayashisan/scene/bt500_1931f_80sec.png" alt="bt500" /></td>
+</tr>
+</tbody></table>
+
+<p></center></p>
+
+<p>31秒のサムネイルは500kであっても高品質を保っているようにみえる。
+色合いが変化しているのとタイムコード部分にノイズがでているが、SSIMは0.98 以上なので良い結果ということであろう。</p>
+
+<p>70秒付近のサムネイルは1000k, 500k ともスコアが悪かったところであるが、500kだと画面全体にブロックノイズが現れている。
+このシーンが特にスコアが悪かった箇所であるが、この結果より画像劣化の激しいシーンやノイズの載ったシーンが抽出できたことがわかる。</p>
+
+<p>80秒付近のシーンは1000kはそこそこ良いスコアだが500kの場合は劣化が激しいシーンである。
+500kのサムネイルをみると、全体的にモスキートノイズがのっていることがわかる。</p>
+
+<h3 id="part-9725f7a808e41821">結果の考察</h3>
+
+<p>部分的なノイズは発見できていない。</p>
+
+<p>PSNRとSSIMが違えば、部分的なノイズが検出できる可能性があるが。</p>
+
+<h2 id="part-37868fa865b7179">まとめ</h2>
+
+<p>検証にもっているデータが少ない。</p>
+
+<h2 id="part-2bb23717e7a4fb4a">参考文献</h2>
+
+<ul>
+<li>[Wikipedia SN] Wikipedia SN比, <a href="https://ja.wikipedia.org/wiki/SN%E6%AF%94">https://ja.wikipedia.org/wiki/SN%E6%AF%94</a>, 2017/08/30 アクセス</li>
+<li>[Wikipedia PSNR] Wikipedia ピーク信号対雑音比, <a href="https://ja.wikipedia.org/wiki/%E3%83%94%E3%83%BC%E3%82%AF%E4%BF%A1%E5%8F%B7%E5%AF%BE%E9%9B%91%E9%9F%B3%E6%AF%94">https://ja.wikipedia.org/wiki/%E3%83%94%E3%83%BC%E3%82%AF%E4%BF%A1%E5%8F%B7%E5%AF%BE%E9%9B%91%E9%9F%B3%E6%AF%94</a>, 2017/08/30 アクセス</li>
+<li>[JIMA guideline] 小箱雅彦, 電子化文書の画像圧縮ガイドライン、<a href="http://www.jiima.or.jp/pdf/5_JIIMA_guideline.pdf">http://www.jiima.or.jp/pdf/5<em>JIIMA</em>guideline.pdf</a>, 2017/08/30 アクセス</li>
+<li>[Wikipedia SSIM] Wikipedia Structural similarity, <a href="https://en.wikipedia.org/wiki/Structural_similarity">https://en.wikipedia.org/wiki/Structural_similarity</a>, 2017/08/30 アクセス</li>
+<li>[Maidragon] TVアニメ「小林さんちのメイドラゴン」, <a href="http://maidragon.jp/">http://maidragon.jp/</a>, 2017/08/30 アクセス</li>
+</ul>
+
+            </div>
+          </div>
+
+          <div class="col-lg-3">
+            <aside>
+              <h2>目次</h2>
+              <ul>
+<li>
+<a href="#part-2a064f37de75b4c9">はじめに</a>
+</li>
+<li>
+<a href="#s-n-psnr">ピークS/N比, PSNR</a>
+<ul>
+<li>
+<a href="#psnr">PSNR の利点・欠点</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#structural-similarity-ssim">Structural Similarity, SSIM</a>
+</li>
+<li>
+<a href="#part-b68d988a5af376af">トランスコード後の動画のノイズ検知検証</a>
+<ul>
+<li>
+<a href="#part-8fb603fb65482652">検証用オリジナル動画</a>
+</li>
+<li>
+<a href="#part-544a576bcce70f53">検証用トランスコード後の動画</a>
+</li>
+<li>
+<a href="#psnr-ssim">PSNR SSIM 検証結果</a>
+</li>
+<li>
+<a href="#part-9725f7a808e41821">結果の考察</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#part-37868fa865b7179">まとめ</a>
+</li>
+<li>
+<a href="#part-2bb23717e7a4fb4a">参考文献</a>
+</li>
+</ul>
+
+
+              <hr />
+
+
+              <h2 class="sidebar-head-text">前の記事</h2>
+              <ul>
+                <li><a href="/articles/2017/08/28/yuv444-422-420.html">YCbCrとクロマサブサンプリング</a> </li>
+              </ul>
+
+              <hr />
+
+              <div class="mt-10"></div>
+
+              <h2 class="sidebar-head-text">最近の記事</h2>
+              <ul>
+                  <li><a href="/articles/2017/08/30/analyze-video-quality.html">トランスコード後ビデオの画質評価とノイズ検出</a> </li>
+                  <li><a href="/articles/2017/08/28/yuv444-422-420.html">YCbCrとクロマサブサンプリング</a> </li>
+              </ul>
+
+              <div class="mt-10"></div>
+
+              <h2 class="sidebar-head-text">キーワード</h2>
+              <ul>
+                  <li><a href="/articles/keywords/ssim.html">SSIM (1)</a></li>
+                  <li><a href="/articles/keywords/psnr.html">PSNR (1)</a></li>
+                  <li><a href="/articles/keywords/ffmpeg.html">ffmpeg (1)</a></li>
+                  <li><a href="/articles/keywords/noise.html">Noise (1)</a></li>
+                  <li><a href="/articles/keywords/compression.html">Compression (1)</a></li>
+                  <li><a href="/articles/keywords/video-compression.html">Video Compression (1)</a></li>
+              </ul>
+
+              <div class="mt-10"></div>
+
+              <h2 class="sidebar-head-text">月別アーカイブ</h2>
+              <ul>
+                  <li><a href="/articles/2017/08.html">2017 / 08 (2)</a></li>
+              </ul>
+            </aside>
+          </div>
+        </div>
+      </div>
+		</article>
+
+
+    <hr>
+
+    <!-- Footer -->
+    <footer>
+      <div class="container">
+        <div class="row">
+          <div class="col-lg-8 col-md-10 mx-auto">
+            <ul class="list-inline text-center">
+              <li class="list-inline-item">
+                <a href="https://twitter.com/nishio_dens" target="_blank">
+                  <span class="fa-stack fa-lg">
+                    <i class="fa fa-circle fa-stack-2x"></i>
+                    <i class="fa fa-twitter fa-stack-1x fa-inverse"></i>
+                  </span>
+                </a>
+              </li>
+              <li class="list-inline-item">
+                <a href="http://github.com/nishio-dens" target="_blank">
+                  <span class="fa-stack fa-lg">
+                    <i class="fa fa-circle fa-stack-2x"></i>
+                    <i class="fa fa-github fa-stack-1x fa-inverse"></i>
+                  </span>
+                </a>
+              </li>
+            </ul>
+            <p class="copyright text-muted">Copyright &copy; <a href="http://densan-labs.net">densan-labs.net</a> 2017.</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Bootstrap core JavaScript -->
+    <script src="/vendor/jquery/jquery.min.js"></script>
+    <script src="/vendor/popper/popper.min.js"></script>
+    <script src="/vendor/bootstrap/js/bootstrap.min.js"></script>
+
+    <!-- Custom scripts for this template -->
+    <script src="/js/clean-blog.min.js"></script>
+
+    <!-- for ga -->
+    <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+      ga('create', 'UA-105390324-1', 'auto');
+      ga('send', 'pageview');
+    </script>
+  </body>
+</html>
+

@@ -59,7 +59,7 @@
               <p class="post-meta">
                 Posted by <a href="https://github.com/nishio-dens" target="_blank">nishio-dens</a> on 2017-08-28 21:01:00 +0900 <br>
                 Keywords:
-                <a href="/articles/keywords/.html">画像圧縮</a>
+                <a href="/articles/keywords/compression.html">Compression</a>, <a href="/articles/keywords/video-compression.html">Video Compression</a>
               </p>
             </div>
 
@@ -119,7 +119,7 @@ YUV420を選択することで、データ量は444の場合に比べて小さ�
 </center></p>
 
 <p>YCbCr と似た表現に YUV が存在する。YUVも YCbCr 同様に 輝度(Y)と色差(U,V) で色を表現する。
-ffmpegでは、YCbCr を YUV と表現していたりする。厳密には計算式が異なるため違うものであるが、この場合は同じようなものとして考えて問題ない。</p>
+ffmpegでは、YCbCr を YUVXXXp と表現していたりする。</p>
 
 <p>その他、YPbPr などの色表現が存在するが、今回はYCbCr での説明を行う。</p>
 
@@ -325,6 +325,61 @@ YUV422では大きな劣化は起こらず、かつデータ量も削減でき�
 
           <div class="col-lg-3">
             <aside>
+              <h2>目次</h2>
+              <ul>
+<li>
+<a href="#part-2a064f37de75b4c9">はじめに</a>
+</li>
+<li>
+<a href="#rgb-ycbcr">RGB と YCbCr</a>
+</li>
+<li>
+<a href="#part-9db78549f46b3ed4">クロマサブサンプリング</a>
+</li>
+<li>
+<a href="#4-4-4-4-2-2-4-2-0-4-1-1">4:4:4 4:2:2 4:2:0 4:1:1</a>
+<ul>
+<li>
+<a href="#4-4-4">4:4:4</a>
+</li>
+<li>
+<a href="#4-2-2">4:2:2</a>
+</li>
+<li>
+<a href="#4-2-0">4:2:0</a>
+</li>
+<li>
+<a href="#4-1-1">4:1:1</a>
+</li>
+</ul>
+</li>
+<li>
+<a href="#part-31f98dfdd947d3b9">サンプリングによる影響</a>
+</li>
+<li>
+<a href="#part-571ed934a8b8a811">サンプリング後の画像比較</a>
+</li>
+<li>
+<a href="#part-1e9aeb12bbadad5d">クロマサブサンプリングの使い所</a>
+</li>
+<li>
+<a href="#part-37868fa865b7179">まとめ</a>
+</li>
+<li>
+<a href="#part-3786edb37bd951e">疑問点</a>
+</li>
+<li>
+<a href="#part-2bb23717e7a4fb4a">参考文献</a>
+</li>
+</ul>
+
+
+              <hr />
+
+              <h2 class="sidebar-head-text">次の記事</h2>
+              <ul>
+                <li><a href="/articles/2017/08/30/analyze-video-quality.html">トランスコード後ビデオの画質評価とノイズ検出</a> </li>
+              </ul>
 
 
               <hr />
@@ -333,6 +388,7 @@ YUV422では大きな劣化は起こらず、かつデータ量も削減でき�
 
               <h2 class="sidebar-head-text">最近の記事</h2>
               <ul>
+                  <li><a href="/articles/2017/08/30/analyze-video-quality.html">トランスコード後ビデオの画質評価とノイズ検出</a> </li>
                   <li><a href="/articles/2017/08/28/yuv444-422-420.html">YCbCrとクロマサブサンプリング</a> </li>
               </ul>
 
@@ -340,14 +396,19 @@ YUV422では大きな劣化は起こらず、かつデータ量も削減でき�
 
               <h2 class="sidebar-head-text">キーワード</h2>
               <ul>
-                  <li><a href="/articles/keywords/.html">画像圧縮 (1)</a></li>
+                  <li><a href="/articles/keywords/ssim.html">SSIM (1)</a></li>
+                  <li><a href="/articles/keywords/psnr.html">PSNR (1)</a></li>
+                  <li><a href="/articles/keywords/ffmpeg.html">ffmpeg (1)</a></li>
+                  <li><a href="/articles/keywords/noise.html">Noise (1)</a></li>
+                  <li><a href="/articles/keywords/compression.html">Compression (1)</a></li>
+                  <li><a href="/articles/keywords/video-compression.html">Video Compression (1)</a></li>
               </ul>
 
               <div class="mt-10"></div>
 
               <h2 class="sidebar-head-text">月別アーカイブ</h2>
               <ul>
-                  <li><a href="/articles/2017/08.html">2017 / 08 (1)</a></li>
+                  <li><a href="/articles/2017/08.html">2017 / 08 (2)</a></li>
               </ul>
             </aside>
           </div>

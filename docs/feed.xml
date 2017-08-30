@@ -5,16 +5,522 @@
   <id>http://videotech.densan-labs.net/articles</id>
   <link href="http://videotech.densan-labs.net/articles"/>
   <link href="http://videotech.densan-labs.net/feed.xml" rel="self"/>
-  <updated>2017-08-28T21:01:00+09:00</updated>
+  <updated>2017-08-30T10:00:00+09:00</updated>
   <author>
     <name>nishio-dens</name>
   </author>
+  <entry>
+    <title>トランスコード後ビデオの画質評価とノイズ検出</title>
+    <link rel="alternate" href="http://videotech.densan-labs.net/articles/2017/08/30/analyze-video-quality.html"/>
+    <id>http://videotech.densan-labs.net/articles/2017/08/30/analyze-video-quality.html</id>
+    <published>2017-08-30T10:00:00+09:00</published>
+    <updated>2017-08-31T01:10:30+09:00</updated>
+    <author>
+      <name>nishio-dens</name>
+    </author>
+    <content type="html">&lt;p&gt;動画のトランスコード後に、もとの素材からどのくらい画質劣化が発生したのかを調べる方法について調べた。
+画質の評価方法にはいくつか種類があるが、今回はPSNRとSSIMを利用し映像劣化やノイズがどの程度検出できるのかについて検証した。&lt;/p&gt;
+
+&lt;p&gt;検証の結果、SSIMやPSNRといった指標を活用することで、
+トランスコード後のノイズ（ブロックノイズやモスキートノイズ等）の検出が可能かもしれないということがわかった。&lt;/p&gt;
+
+&lt;h2 id="part-2a064f37de75b4c9"&gt;はじめに&lt;/h2&gt;
+
+&lt;p&gt;ProResやHDxHDと言った中間コーデックは無圧縮の動画並みの品質を持っているが、そのまま配信するにはデータ量が大きすぎる。
+動画をエンドユーザに配信するためには、コンテンツをMPEG2やH.264といった配信用のフォーマットに変換する必要がある。&lt;/p&gt;
+
+&lt;p&gt;MPEGやh264は編集には適さないが、高い映像品質を維持したままデータサイズを大幅に抑えることができるため、
+テレビ放送やBD/DVD、及びVODなどの動画配信サービスで利用されている。 
+これらのフォーマットでは、元の素材から人間にはわかりづらい領域のデータを削ったり、
+前後のフレームからの差分情報だけを保持するなどしてデータ量削減を行っている。&lt;/p&gt;
+
+&lt;p&gt;データ量を抑えようとすればするほどより多くの情報を削るため、
+動画のトランスコードの仕方によっては目に見えて映像劣化がわかってしまう。
+これらの劣化は、ブロックノイズやモスキートノイズとなって映像に現れる。
+動きの早いシーンではフレーム間予測がうまく働かずにデータ量が増えてしまうが、
+映像に割り当てられるデータ量には上限があるため、こういったシーンではノイズがより多く発生する可能性がある。
+また色の移り変わりの激しい箇所やシーンでも同様にノイズが発生する可能性がある。&lt;/p&gt;
+
+&lt;p&gt;今回はffmpeg及びPSNRとSSIMを使いトランスコード前の素材から、トランスコード後の映像がどの程度劣化したかを調べる方法を調査した。
+また、トランスコード後の動画のノイズ検出についての調査考察を行った。&lt;/p&gt;
+
+&lt;h2 id="s-n-psnr"&gt;ピークS/N比, PSNR&lt;/h2&gt;
+
+&lt;p&gt;ピークS/N比はPSNR(Peak singal-to-noise Ratio)とも呼ばれるが、画質評価のための指標である。
+元の画像と圧縮後の画像を比較し、どの程度品質が劣化したのかを評価する。&lt;/p&gt;
+
+&lt;p&gt;ピークS/N比の前に、単純なS/N比について説明する。
+S/N比とは信号(Signal)と雑音(Noise)の比率のことであり、以下の式で表される。P_s は 元の信号、P_n はノイズであり、結果の単位はdBで表される。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="/articles/image/snratio_wiki.png" alt="SN Ratio" /&gt;&lt;/p&gt;
+
+&lt;p&gt;図: S/N比 [Wikipedia SN]より引用&lt;/p&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;S/N比を用いることで、雑音の影響がどの程度あるのかを評価することができる。
+雑音P_n が限りなく0に近い場合はノイズがほぼないということであり、この場合はS/N比は無限に近づく。
+すなわち、&lt;strong&gt;S/N比が大きければ大きいほど、ノイズが少ない&lt;/strong&gt;ということである。&lt;/p&gt;
+
+&lt;p&gt;次にピークS/N比について説明する。ピークS/N比は以下式で表される。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="/articles/image/psnr02.png" alt="PSNR" /&gt;&lt;/p&gt;
+
+&lt;p&gt;図: ピークS/N比 [Wikipedia PSNR]より引用&lt;/p&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;ここでいうMAX_I は元(入力)の画像の最大画素値である。
+8ビットの画像ならば、MAX_Iは255の値を取ることとなる。
+MSEとは平均二乗誤差のことであるが、これは以下のように表現される。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="/articles/image/psnr01.png" alt="PSNR MSE" /&gt;&lt;/p&gt;
+
+&lt;p&gt;図: ピークS/N比 MSE [Wikipedia PSNR]より引用&lt;/p&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;I(i,j)は入力画像の1画素(位置はX座標i, Y座標jとする）、K(i,j)は変換後画像の1画素を表す。
+話を単純にするために、モノクロ画像の画像を評価することを考える。
+I(i,j)は元の画像の1画素の明るさであり、例えば0-255までの値をとることとする。K(i,j)は変換後の1画素をあらわし、これも0-255までとることとする。
+I(i,j) から K(i,j) を引くことにより、元の画素との違い（すなわち誤差）がわかる。&lt;/p&gt;
+
+&lt;p&gt;次に全体を二乗し1/mn をかけているが、これは平均二乗誤差である。
+平均二乗誤差は統計ではデータ全体のばらつきをもとめる際に利用される。
+詳しくは統計の書籍を参考にしていただきたいが、ばらつきを求める際、単純にすべての値を足し引きしていくと誤差が正しく検出できない。
+例えば、とある値は誤差+10 であり、別の値では誤差-10 と検出された場合、すべてを足し合わせると0となってしまい誤差は無いように見えてしまう。
+二乗し平均を取ることで、ばらつきを適切に検出することができる。&lt;/p&gt;
+
+&lt;p&gt;これらを踏まえてもう一度PSNRの式をみてみる。
+S/N比のS(元の信号)にあたる部分が元の画像の最大画素値、そしてN(雑音)に当たる部分がもとの画像と出力後の画像との差分である。
+&lt;strong&gt;雑音が少なければ少ない(すなわち元の画像との差分が少ない）ほど、PSNRは大きな値を取る&lt;/strong&gt;こととなる。&lt;/p&gt;
+
+&lt;p&gt;[JIMA guideline]によると、PSNR の数値目安は以下のとおりである。&lt;/p&gt;
+
+&lt;p&gt;&lt;center class="table"&gt;&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: center"&gt;PSNR [dB]&lt;/th&gt;
+&lt;th style="text-align: center"&gt;主観評価&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;40 〜 ∞&lt;/td&gt;
+&lt;td style="text-align: center"&gt;元の画像と圧縮画像の区別がつかない&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;30 〜 40&lt;/td&gt;
+&lt;td style="text-align: center"&gt;拡大すれば劣化がわかるレベル&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;30以下&lt;/td&gt;
+&lt;td style="text-align: center"&gt;明らかに劣化がわかる&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;h3 id="psnr"&gt;PSNR の利点・欠点&lt;/h3&gt;
+
+&lt;p&gt;PSNR の計算式をみてわかるが、画像全体のノイズ（画像劣化）を求めて値を算出している。
+すなわち、動画や画像が全体的に劣化している場合はPSNRが低い値がでることになる。
+&lt;strong&gt;全体的な画質の評価を行う場合、PSNRを用いるのは有効な手段&lt;/strong&gt;である。&lt;/p&gt;
+
+&lt;p&gt;一方、画像をみて劣化していると感じるのは、全体的なものよりも画像の部分的なノイズかもしれない。
+&lt;strong&gt;ブロックノイズやモスキートノイズが部分的に発生している場合は、PSNRではうまく劣化を検出できない&lt;/strong&gt;こととなる。&lt;/p&gt;
+
+&lt;h2 id="structural-similarity-ssim"&gt;Structural Similarity, SSIM&lt;/h2&gt;
+
+&lt;p&gt;PSNRでは、部分的な画像劣化の検出が難しいことがわかった。
+この欠点を解決した画質評価の手法が、SSIM (Structural Similarity) である。&lt;/p&gt;
+
+&lt;p&gt;SSIMの計算式は以下のとおりであるが、これはPSNRと違い式をみただけでは直感的にはよくわからない。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="/articles/image/ssim_algo.png" alt="SSIM" /&gt;&lt;/p&gt;
+
+&lt;p&gt;図: SSIM [Wikipedia SSIM]より引用&lt;/p&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;書いている本人も意味は理解はしていないので、詳しい説明は専門書を参考されたい。&lt;/p&gt;
+
+&lt;p&gt;SSIMでは画像全体の誤差を利用するのではなく、元の画像と出力後の画像の局所的な領域の誤差を求めていく。
+そしてそれらの平均をとり最終的なSSIM値を求めている。
+これにより&lt;strong&gt;部分的にノイズが発生している場合もうまく検出が可能&lt;/strong&gt;となる。&lt;/p&gt;
+
+&lt;p&gt;SSIMの場合、値は1 〜 0の範囲を取ることとなる。
+1が最も高品質（画像劣化のない状態）であり、0が最も低品質である。
+[JIMA guideline]によると、SSIMの数値目安は以下のとおりである。&lt;/p&gt;
+
+&lt;p&gt;&lt;center class="table"&gt;&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: center"&gt;SSIM&lt;/th&gt;
+&lt;th style="text-align: center"&gt;主観評価&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.98以上&lt;/td&gt;
+&lt;td style="text-align: center"&gt;元の画像と圧縮画像の区別がつかない&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.90 〜 0.98&lt;/td&gt;
+&lt;td style="text-align: center"&gt;拡大すれば劣化がわかるレベル&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;0.90以下&lt;/td&gt;
+&lt;td style="text-align: center"&gt;明らかに劣化がわかる&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;h2 id="part-b68d988a5af376af"&gt;トランスコード後の動画のノイズ検知検証&lt;/h2&gt;
+
+&lt;p&gt;PSNR, SSIMを用いることで、画像の劣化を評価できることがわかった。
+画像の劣化がわかるということは、すなわち動画トランスコード後のブロックノイズやモスキートノイズなども検出できる可能性がある。
+ここで、どの程度のノイズが検出できるのか検証を行ってみることとする。&lt;/p&gt;
+
+&lt;h3 id="part-8fb603fb65482652"&gt;検証用オリジナル動画&lt;/h3&gt;
+
+&lt;p&gt;検証用の動画として、以下形式の動画を用意した。動画は 小林さんちのメイドラゴン [Maidragon] のOP部分を利用する。
+このアニメのOPは、俗に言うエンコ殺し動画であり、エンコードには向いていない(ノイズがでやすい）シーンが存在しているため、
+今回検証に利用することとした。
+なお、一部編集(シーンカットとTC焼き込み)を行ったためオリジナルの素材はProResとしているが、
+ProRes変換前はMPEG2であり、MPEG2の時点ですでにノイズが乗っている場合があるがご容赦いただきたい。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Video: ProRes yuv422p10le progressive, 1280x720, 23.976fps&lt;/li&gt;
+&lt;li&gt;Audio: pcm_s16le 48000 Hz, stereo&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;オリジナル素材のビットレートは以下のとおりである。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="/articles/image/maidragon_original_prores_bitrate.png" alt="Maidragon OP Prores" /&gt;&lt;/p&gt;
+
+&lt;p&gt;図: 検証用オリジナル素材ビットレート メイドラゴンOP Prores422 1280x720&lt;/p&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;各シーンは以下のとおりである。&lt;/p&gt;
+
+&lt;p&gt;&lt;center class="table"&gt;&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: center"&gt;Frame&lt;/th&gt;
+&lt;th style="text-align: center"&gt;TC&lt;/th&gt;
+&lt;th style="text-align: center"&gt;シーン&lt;/th&gt;
+&lt;th style="text-align: center"&gt;備考&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;1&lt;/td&gt;
+&lt;td style="text-align: center"&gt;00:00:00:00&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/kobayashisan/original_scene/0.png" alt="scene0" /&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;スタート。シーンの移り変わりが激しいが大きな動きはなし。407fまで続く&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;407&lt;/td&gt;
+&lt;td style="text-align: center"&gt;00:00:16:23&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/kobayashisan/original_scene/407.png" alt="scene407" /&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;OPタイトル。動きは少ない&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;578&lt;/td&gt;
+&lt;td style="text-align: center"&gt;00:00:24:02&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/kobayashisan/original_scene/578.png" alt="scene578" /&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;シーン変化&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;796&lt;/td&gt;
+&lt;td style="text-align: center"&gt;00:00:33:04&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/kobayashisan/original_scene/1218.png" alt="scene1218" /&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;シーン変化、以後しばらくシーン変化が続く&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;1564&lt;/td&gt;
+&lt;td style="text-align: center"&gt;00:01:05:04&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/kobayashisan/original_scene/1564.png" alt="scene1564" /&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;エンコ殺しシーンスタート。キャラクタが残像を残しながら激しく動き回る。1729Frameまで続く&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;1729&lt;/td&gt;
+&lt;td style="text-align: center"&gt;00:01:12:01&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/kobayashisan/original_scene/1729.png" alt="scene1729" /&gt;&lt;/td&gt;
+&lt;td style="text-align: center"&gt;以降動きが激しいシーンとそうでないシーンがいくつか続きEND&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;h3 id="part-544a576bcce70f53"&gt;検証用トランスコード後の動画&lt;/h3&gt;
+
+&lt;p&gt;画質劣化を確認するための動画を用意する。&lt;/p&gt;
+
+&lt;ul&gt;
+&lt;li&gt;Video: h264 yuv422p 1280x720, 23.976fps&lt;/li&gt;
+&lt;li&gt;Audio: aac 48000 Hz, stereo&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;H254でエンコードを行う場合、通常CRF(Constant Rate Factor)値を調整し画質調整を行うが、
+今回は以下4パターンのAVR(平均ビットレート)を指定し、画質の劣化を検証する。&lt;/p&gt;
+
+&lt;ol&gt;
+&lt;li&gt;ABR 10000k&lt;/li&gt;
+&lt;li&gt;ABR 3000k&lt;/li&gt;
+&lt;li&gt;ABR 1000k&lt;/li&gt;
+&lt;li&gt;ABR 500k&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;ffmpeg では以下コマンドを利用することで、AVRを指定したエンコードが可能である。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre class="highlight plaintext"&gt;&lt;code&gt;ffmpeg -i Maidragon_OP_Original.mov -b:v 10000k -c:v libx264 enc.mp4
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;変換後の各フレーム毎のビットレートは以下のとおりである。&lt;/p&gt;
+
+&lt;p&gt;&lt;center class="table"&gt;&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th style="text-align: center"&gt;Pattern&lt;/th&gt;
+&lt;th style="text-align: center"&gt;ABR&lt;/th&gt;
+&lt;th style="text-align: center"&gt;Bitrate Graph&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;1&lt;/td&gt;
+&lt;td style="text-align: center"&gt;10000k&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/kobayashisan/bt10000_enc.png" alt="10000" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;2&lt;/td&gt;
+&lt;td style="text-align: center"&gt;3000&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/kobayashisan/bt3000_enc.png" alt="3000" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;3&lt;/td&gt;
+&lt;td style="text-align: center"&gt;1000&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/kobayashisan/bt1000_enc.png" alt="1000" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td style="text-align: center"&gt;4&lt;/td&gt;
+&lt;td style="text-align: center"&gt;500&lt;/td&gt;
+&lt;td style="text-align: center"&gt;&lt;img src="/articles/image/kobayashisan/bt500_enc.png" alt="500" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;これらの素材に対し、各フレームごとのPSNRとSSIMを求める。&lt;/p&gt;
+
+&lt;p&gt;PSNRはffmpegでは以下コマンドで求めることができる。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre class="highlight plaintext"&gt;&lt;code&gt;ffmpeg -i オリジナル動画Path -i 変換後動画Path -filter_complex psnr=psnr.log -an -f null -
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;SSIMはffmpegでは以下コマンドで求めることができる。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;pre class="highlight plaintext"&gt;&lt;code&gt;ffmpeg -i オリジナル動画Path -i 変換後動画Path -filter_complex ssim=stats.txt -an -f null -
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;h3 id="psnr-ssim"&gt;PSNR SSIM 検証結果&lt;/h3&gt;
+
+&lt;p&gt;各ビットレートの動画のPSNRを出力した結果は以下のとおりである。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="/articles/image/kobayashisan/psnr_result_maidragon.png" alt="psnr result" /&gt;&lt;/p&gt;
+
+&lt;p&gt;図: トランスコード後動画 各ビットレートのPSNR出力結果&lt;/p&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;PSNR 40dB以上は劣化がわからず、PSNR 30dBより下回った場合は、目に見えて劣化がわかるということである。
+よって、Bitrate 1000kとBitrate 500k の動画は品質が低いシーンが存在するということになる。&lt;/p&gt;
+
+&lt;p&gt;次に、各ビットレートの動画のSSIMを出力した結果は以下のとおりである。&lt;/p&gt;
+
+&lt;p&gt;&lt;center&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="/articles/image/kobayashisan/SSIM_results_maidragon.png" alt="ssim result" /&gt;&lt;/p&gt;
+
+&lt;p&gt;図: トランスコード後動画 各ビットレートのSSIM出力結果&lt;/p&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;SSIMの場合、0.98以上は元画像と区別がつかず、0.90以下の場合は品質劣化が目に見えてわかるということである。
+よって、PSNR同様 Bitrate 1000kとBitrate 500k の動画は品質が低いシーンが存在するということになる。&lt;/p&gt;
+
+&lt;p&gt;エンコ殺しのシーンは 65秒から7秒程度続くが、このあたりではPSNR/SSIM値が大きく下がっていることがわかる。
+その他シーンでも動きが大きかったりシーンの移り変わりのある箇所ではPSNR/SSIM値が下がっているようにみえる。&lt;/p&gt;
+
+&lt;p&gt;ここで、いくつかスコアが良かったシーンと悪かったシーンのサムネイルを比較してみる。
+抽出箇所とPSNR, SSIMは以下のとおりである。&lt;/p&gt;
+
+&lt;p&gt;&lt;center class="table"&gt;&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Frame&lt;/th&gt;
+&lt;th&gt;TC&lt;/th&gt;
+&lt;th&gt;実時間 (sec)&lt;/th&gt;
+&lt;th&gt;1000k PSNR [dB]&lt;/th&gt;
+&lt;th&gt;500k PSNR [dB]&lt;/th&gt;
+&lt;th&gt;1000k SSIM&lt;/th&gt;
+&lt;th&gt;500k SSIM&lt;/th&gt;
+&lt;th&gt;備考&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;745&lt;/td&gt;
+&lt;td&gt;00:00:31:01&lt;/td&gt;
+&lt;td&gt;31.0727&lt;/td&gt;
+&lt;td&gt;44.29&lt;/td&gt;
+&lt;td&gt;41.28&lt;/td&gt;
+&lt;td&gt;0.989092&lt;/td&gt;
+&lt;td&gt;0.984172&lt;/td&gt;
+&lt;td&gt;スコアが良かったシーン&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;1680&lt;/td&gt;
+&lt;td&gt;00:01:10:00&lt;/td&gt;
+&lt;td&gt;70.070&lt;/td&gt;
+&lt;td&gt;30.53&lt;/td&gt;
+&lt;td&gt;26.85&lt;/td&gt;
+&lt;td&gt;0.814229&lt;/td&gt;
+&lt;td&gt;0.708519&lt;/td&gt;
+&lt;td&gt;スコアが悪いシーン&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;1931&lt;/td&gt;
+&lt;td&gt;00:01:20:11&lt;/td&gt;
+&lt;td&gt;80.538&lt;/td&gt;
+&lt;td&gt;33.14&lt;/td&gt;
+&lt;td&gt;29.88&lt;/td&gt;
+&lt;td&gt;0.918353&lt;/td&gt;
+&lt;td&gt;0.866596&lt;/td&gt;
+&lt;td&gt;スコアがそこそこ悪いシーン&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;抽出サムネイルは以下のとおりである。&lt;/p&gt;
+
+&lt;p&gt;&lt;center class="table"&gt;&lt;/p&gt;
+
+&lt;table&gt;&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;実時間&lt;/th&gt;
+&lt;th&gt;Bitrate&lt;/th&gt;
+&lt;th&gt;サムネイル&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;31.0727&lt;/td&gt;
+&lt;td&gt;オリジナル&lt;/td&gt;
+&lt;td&gt;&lt;img src="/articles/image/kobayashisan/scene/original_745f_30sec.png" alt="orig31" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;31.0727&lt;/td&gt;
+&lt;td&gt;1000k&lt;/td&gt;
+&lt;td&gt;&lt;img src="/articles/image/kobayashisan/scene/bt1000_745f_30sec.png" alt="bt1000" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;31.0727&lt;/td&gt;
+&lt;td&gt;500k&lt;/td&gt;
+&lt;td&gt;&lt;img src="/articles/image/kobayashisan/scene/bt500_745f_30sec.png" alt="bt500" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;70.070&lt;/td&gt;
+&lt;td&gt;オリジナル&lt;/td&gt;
+&lt;td&gt;&lt;img src="/articles/image/kobayashisan/scene/original_1680f_70sec.png" alt="orig31" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;70.070&lt;/td&gt;
+&lt;td&gt;1000k&lt;/td&gt;
+&lt;td&gt;&lt;img src="/articles/image/kobayashisan/scene/bt1000_1680f_70sec.png" alt="bt1000" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;70.070&lt;/td&gt;
+&lt;td&gt;500k&lt;/td&gt;
+&lt;td&gt;&lt;img src="/articles/image/kobayashisan/scene/bt500_1680f_70sec.png" alt="bt500" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;80.538&lt;/td&gt;
+&lt;td&gt;オリジナル&lt;/td&gt;
+&lt;td&gt;&lt;img src="/articles/image/kobayashisan/scene/original_1931f_80sec.png" alt="orig31" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;80.538&lt;/td&gt;
+&lt;td&gt;1000k&lt;/td&gt;
+&lt;td&gt;&lt;img src="/articles/image/kobayashisan/scene/bt1000_1931f_80sec.png" alt="bt1000" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;80.538&lt;/td&gt;
+&lt;td&gt;500k&lt;/td&gt;
+&lt;td&gt;&lt;img src="/articles/image/kobayashisan/scene/bt500_1931f_80sec.png" alt="bt500" /&gt;&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;&lt;/table&gt;
+
+&lt;p&gt;&lt;/center&gt;&lt;/p&gt;
+
+&lt;p&gt;31秒のサムネイルは500kであっても高品質を保っているようにみえる。
+色合いが変化しているのとタイムコード部分にノイズがでているが、SSIMは0.98 以上なので良い結果ということであろう。&lt;/p&gt;
+
+&lt;p&gt;70秒付近のサムネイルは1000k, 500k ともスコアが悪かったところであるが、500kだと画面全体にブロックノイズが現れている。
+このシーンが特にスコアが悪かった箇所であるが、この結果より画像劣化の激しいシーンやノイズの載ったシーンが抽出できたことがわかる。&lt;/p&gt;
+
+&lt;p&gt;80秒付近のシーンは1000kはそこそこ良いスコアだが500kの場合は劣化が激しいシーンである。
+500kのサムネイルをみると、全体的にモスキートノイズがのっていることがわかる。&lt;/p&gt;
+
+&lt;h3 id="part-9725f7a808e41821"&gt;結果の考察&lt;/h3&gt;
+
+&lt;p&gt;部分的なノイズは発見できていない。&lt;/p&gt;
+
+&lt;p&gt;PSNRとSSIMが違えば、部分的なノイズが検出できる可能性があるが。&lt;/p&gt;
+
+&lt;h2 id="part-37868fa865b7179"&gt;まとめ&lt;/h2&gt;
+
+&lt;p&gt;検証にもっているデータが少ない。&lt;/p&gt;
+
+&lt;h2 id="part-2bb23717e7a4fb4a"&gt;参考文献&lt;/h2&gt;
+
+&lt;ul&gt;
+&lt;li&gt;[Wikipedia SN] Wikipedia SN比, &lt;a href="https://ja.wikipedia.org/wiki/SN%E6%AF%94"&gt;https://ja.wikipedia.org/wiki/SN%E6%AF%94&lt;/a&gt;, 2017/08/30 アクセス&lt;/li&gt;
+&lt;li&gt;[Wikipedia PSNR] Wikipedia ピーク信号対雑音比, &lt;a href="https://ja.wikipedia.org/wiki/%E3%83%94%E3%83%BC%E3%82%AF%E4%BF%A1%E5%8F%B7%E5%AF%BE%E9%9B%91%E9%9F%B3%E6%AF%94"&gt;https://ja.wikipedia.org/wiki/%E3%83%94%E3%83%BC%E3%82%AF%E4%BF%A1%E5%8F%B7%E5%AF%BE%E9%9B%91%E9%9F%B3%E6%AF%94&lt;/a&gt;, 2017/08/30 アクセス&lt;/li&gt;
+&lt;li&gt;[JIMA guideline] 小箱雅彦, 電子化文書の画像圧縮ガイドライン、&lt;a href="http://www.jiima.or.jp/pdf/5_JIIMA_guideline.pdf"&gt;http://www.jiima.or.jp/pdf/5&lt;em&gt;JIIMA&lt;/em&gt;guideline.pdf&lt;/a&gt;, 2017/08/30 アクセス&lt;/li&gt;
+&lt;li&gt;[Wikipedia SSIM] Wikipedia Structural similarity, &lt;a href="https://en.wikipedia.org/wiki/Structural_similarity"&gt;https://en.wikipedia.org/wiki/Structural_similarity&lt;/a&gt;, 2017/08/30 アクセス&lt;/li&gt;
+&lt;li&gt;[Maidragon] TVアニメ「小林さんちのメイドラゴン」, &lt;a href="http://maidragon.jp/"&gt;http://maidragon.jp/&lt;/a&gt;, 2017/08/30 アクセス&lt;/li&gt;
+&lt;/ul&gt;
+</content>
+  </entry>
   <entry>
     <title>YCbCrとクロマサブサンプリング</title>
     <link rel="alternate" href="http://videotech.densan-labs.net/articles/2017/08/28/yuv444-422-420.html"/>
     <id>http://videotech.densan-labs.net/articles/2017/08/28/yuv444-422-420.html</id>
     <published>2017-08-28T21:01:00+09:00</published>
-    <updated>2017-08-28T21:01:40+09:00</updated>
+    <updated>2017-08-30T02:57:06+09:00</updated>
     <author>
       <name>nishio-dens</name>
     </author>
@@ -73,7 +579,7 @@ YUV420を選択することで、データ量は444の場合に比べて小さ�
 &lt;/center&gt;&lt;/p&gt;
 
 &lt;p&gt;YCbCr と似た表現に YUV が存在する。YUVも YCbCr 同様に 輝度(Y)と色差(U,V) で色を表現する。
-ffmpegでは、YCbCr を YUV と表現していたりする。厳密には計算式が異なるため違うものであるが、この場合は同じようなものとして考えて問題ない。&lt;/p&gt;
+ffmpegでは、YCbCr を YUVXXXp と表現していたりする。&lt;/p&gt;
 
 &lt;p&gt;その他、YPbPr などの色表現が存在するが、今回はYCbCr での説明を行う。&lt;/p&gt;
 
