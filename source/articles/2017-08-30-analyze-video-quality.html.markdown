@@ -154,8 +154,100 @@ PSNR, SSIMを用いることで、画像の劣化を評価できることがわ�
 画像の劣化がわかるということは、すなわち動画トランスコード後のブロックノイズやモスキートノイズなども検出できる可能性がある。
 ここで、どの程度のノイズが検出できるのか検証を行ってみることとする。
 
-### 検証データ
+### 検証用オリジナルデータ
 
+検証用の動画として、以下形式の動画を用意した。動画は 小林さんちのメイドラゴン [Maidragon] のOP部分を利用する。
+このアニメのOPは、俗に言うエンコ殺し動画であり、エンコードには向いていない(ノイズがでやすい）シーンが存在しているため、
+今回検証に利用することとした。
+なお、一部編集(シーンカットとTC焼き込み)を行ったためオリジナルの素材はProResとしているが、
+ProRes変換前はMPEG2であり、MPEG2の時点ですでにノイズが乗っている場合があるがご容赦いただきたい。
+
+- Video: ProRes yuv422p10le progressive, 1280x720, 23.976fps
+- Audio: pcm\_s16le 48000 Hz, stereo
+
+オリジナル素材のビットレートは以下のとおりである。
+
+<center>
+
+![Maidragon OP Prores](articles/image/maidragon_original_prores_bitrate.png)
+
+図: 検証用オリジナル素材ビットレート メイドラゴンOP Prores422 1280x720
+
+</center>
+
+各シーンは以下のとおりである。
+
+<center class="table">
+
+| Frame | TC | シーン | 備考 |
+|:----:|:----:|:----:|:----:|
+|1|00:00:00:00| ![scene0](articles/image/kobayashisan/original_scene/0.png) | スタート。シーンの移り変わりが激しいが大きな動きはなし。407fまで続く|
+|407|00:00:16:23| ![scene407](articles/image/kobayashisan/original_scene/407.png) | OPタイトル。動きは少ない |
+|578|00:00:24:02| ![scene578](articles/image/kobayashisan/original_scene/578.png) | シーン変化|
+|796|00:00:33:04| ![scene1218](articles/image/kobayashisan/original_scene/1218.png) | シーン変化、以後しばらくシーン変化が続く |
+|1564|00:01:05:04| ![scene1564](articles/image/kobayashisan/original_scene/1564.png) | エンコ殺しシーンスタート。キャラクタが残像を残しながら激しく動き回る。1729Frameまで続く|
+|1729|00:01:12:01| ![scene1729](articles/image/kobayashisan/original_scene/1729.png) | 以降動きが激しいシーンとそうでないシーンがいくつか続きEND |
+
+</center>
+
+
+### 検証用トランスコード後の動画
+
+画質劣化を確認するための動画を用意する。
+
+- Video: h264 yuv422p 1280x720, 23.976fps
+- Audio: aac 48000 Hz, stereo
+
+H254でエンコードを行う場合、通常CRF(Constant Rate Factor)値を調整し画質調整を行うが、
+今回は以下4パターンのAVR(平均ビットレート)を指定し、画質の劣化を検証する。
+
+1. ABR 10000k
+2. ABR 3000k
+3. ABR 1000k 
+4. ABR 500k
+
+ffmpeg では以下コマンドを利用することで、AVRを指定したエンコードが可能である。
+
+<center>
+
+```
+ffmpeg -i Maidragon_OP_Original.mov -b:v 10000k -c:v libx264 enc.mp4
+```
+
+</center>
+
+変換後のビットレートは以下のとおりである。
+
+| ABR 10000k | ABR 3000k | ABR 1000k | ABR 500k |
+|:----:|:----:|:----:|:----:|
+
+
+これらの素材に対し、各フレームごとのPSNRとSSIMを求める。
+
+PSNRはffmpegでは以下コマンドで求めることができる。
+
+<center>
+
+```
+ffmpeg
+```
+
+</center>
+
+SSIMはffmpegでは以下コマンドで求めることができる。
+
+<center>
+
+```
+ffmpeg
+```
+
+</center>
+
+
+
+
+### PSNR SSIM 検証結果
 
 ## 参考文献
 
@@ -163,3 +255,4 @@ PSNR, SSIMを用いることで、画像の劣化を評価できることがわ�
 - [Wikipedia PSNR] Wikipedia ピーク信号対雑音比, [https://ja.wikipedia.org/wiki/%E3%83%94%E3%83%BC%E3%82%AF%E4%BF%A1%E5%8F%B7%E5%AF%BE%E9%9B%91%E9%9F%B3%E6%AF%94](https://ja.wikipedia.org/wiki/%E3%83%94%E3%83%BC%E3%82%AF%E4%BF%A1%E5%8F%B7%E5%AF%BE%E9%9B%91%E9%9F%B3%E6%AF%94), 2017/08/30 アクセス
 - [JIMA guideline] 小箱雅彦, 電子化文書の画像圧縮ガイドライン、[http://www.jiima.or.jp/pdf/5_JIIMA_guideline.pdf](http://www.jiima.or.jp/pdf/5_JIIMA_guideline.pdf), 2017/08/30 アクセス
 - [Wikipedia SSIM] Wikipedia Structural similarity, [https://en.wikipedia.org/wiki/Structural_similarity](https://en.wikipedia.org/wiki/Structural_similarity), 2017/08/30 アクセス
+- [Maidragon] TVアニメ「小林さんちのメイドラゴン」, [http://maidragon.jp/](http://maidragon.jp/), 2017/08/30 アクセス
