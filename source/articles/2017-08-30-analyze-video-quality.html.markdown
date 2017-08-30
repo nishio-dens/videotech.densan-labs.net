@@ -12,7 +12,6 @@ tags: SSIM, PSNR, ffmpeg, Noise
 検証の結果、SSIMやPSNRといった指標を活用することで、
 トランスコード後のノイズ（ブロックノイズやモスキートノイズ等）の検出が可能かもしれないということがわかった。
 
-
 ## はじめに
 
 ProResやHDxHDと言った中間コーデックは無圧縮の動画並みの品質を持っているが、そのまま配信するにはデータ量が大きすぎる。
@@ -203,7 +202,7 @@ H254でエンコードを行う場合、通常CRF(Constant Rate Factor)値を調
 
 1. ABR 10000k
 2. ABR 3000k
-3. ABR 1000k 
+3. ABR 1000k
 4. ABR 500k
 
 ffmpeg では以下コマンドを利用することで、AVRを指定したエンコードが可能である。
@@ -216,10 +215,18 @@ ffmpeg -i Maidragon_OP_Original.mov -b:v 10000k -c:v libx264 enc.mp4
 
 </center>
 
-変換後のビットレートは以下のとおりである。
+変換後の各フレーム毎のビットレートは以下のとおりである。
 
-| ABR 10000k | ABR 3000k | ABR 1000k | ABR 500k |
-|:----:|:----:|:----:|:----:|
+<center class="table">
+
+| Pattern | ABR | Bitrate Graph |
+|:----:|:----:|:----:|
+|1| 10000k | ![10000](articles/image/kobayashisan/bt10000_enc.png) |
+|2| 3000| ![3000](articles/image/kobayashisan/bt3000_enc.png) |
+|3| 1000| ![1000](articles/image/kobayashisan/bt1000_enc.png) |
+|4| 500| ![500](articles/image/kobayashisan/bt500_enc.png) |
+
+</center>
 
 
 これらの素材に対し、各フレームごとのPSNRとSSIMを求める。
@@ -229,7 +236,7 @@ PSNRはffmpegでは以下コマンドで求めることができる。
 <center>
 
 ```
-ffmpeg
+ffmpeg -i オリジナル動画Path -i 変換後動画Path -filter_complex psnr=psnr.log -an -f null -
 ```
 
 </center>
@@ -239,15 +246,17 @@ SSIMはffmpegでは以下コマンドで求めることができる。
 <center>
 
 ```
-ffmpeg
+ffmpeg -i オリジナル動画Path -i 変換後動画Path -filter_complex ssim=stats.txt -an -f null -
 ```
 
 </center>
 
 
 
+### PSNR SSIM 検証結果と考察
 
-### PSNR SSIM 検証結果
+
+## まとめ
 
 ## 参考文献
 

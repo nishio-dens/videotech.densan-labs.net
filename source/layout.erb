@@ -91,6 +91,9 @@
 
           <div class="col-lg-3">
             <aside>
+              <h2>目次</h2>
+              <%= render_toc(current_article) %>
+
               <% if current_article.article_next.present? %>
               <h2 class="sidebar-head-text">次の記事</h2>
               <ul>

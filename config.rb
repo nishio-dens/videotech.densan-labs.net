@@ -26,6 +26,7 @@ Time.zone = 'Tokyo'
 activate :syntax
 set :markdown_engine, :redcarpet
 set :markdown, fenced_code_blocks: true, smartypants: true, with_toc_data: true, tables: true, autolink: true, gh_blockcode: true
+set :markdown, toc_levels: [2.3]
 
 activate :blog do |blog|
   # This will add a prefix to all links, template references and source paths
@@ -62,12 +63,17 @@ configure :development do
   activate :livereload
 end
 
-# Methods defined in the helpers block are available in templates
-# helpers do
-#   def some_helper
-#     "Helping"
-#   end
-# end
+helpers do
+  def render_toc(page)
+    require 'pry'
+      binding.pry
+    if config.markdown_engine == :redcarpet && config.markdown[:with_toc_data]
+      toc = Redcarpet::Markdown.new(Redcarpet::Render::HTML_TOC)
+      text = File.read(page.source_file)
+      toc.render(text)
+    end
+  end
+end
 
 # Build-specific configuration
 set :build_dir, 'docs'
