@@ -286,11 +286,46 @@ SSIMの場合、0.98以上は元画像と区別がつかず、0.90以下の場�
 その他シーンでも動きが大きかったりシーンの移り変わりのある箇所ではPSNR/SSIM値が下がっているようにみえる。
 
 ここで、いくつかスコアが良かったシーンと悪かったシーンのサムネイルを比較してみる。
-まずはスコアが良かった
+抽出箇所とPSNR, SSIMは以下のとおりである。
+
+<center class="table">
+
+| Frame | TC | 実時間 (sec) | 1000k PSNR [dB] | 500k PSNR [dB] | 1000k SSIM | 500k SSIM | 備考 |
+|---|---|---|---|---|---|---|---|---|
+| 745 | 00:00:31:01 | 31.0727 | 44.29 | 41.28| 0.989092|0.984172 | スコアが良かったシーン |
+| 1680|00:01:10:00|70.070|30.53|26.85|0.814229 |0.708519 | スコアが悪いシーン |
+|1931|00:01:20:11|80.538| 33.14|29.88| 0.918353|0.866596 | スコアがそこそこ悪いシーン |
+
+</center>
+
+抽出サムネイルは以下のとおりである。
 
 
-値を書くこと！
+<center class="table">
 
+| 実時間 | Bitrate | サムネイル |
+|---|---|---|---|
+| 31.0727 | オリジナル | ![orig31](articles/image/kobayashisan/scene/original_745f_30sec.png) | 
+| 31.0727 | 1000k | ![bt1000](articles/image/kobayashisan/scene/bt1000_745f_30sec.png) | 
+| 31.0727 | 500k| ![bt500](articles/image/kobayashisan/scene/bt500_745f_30sec.png) | 
+| 70.070 | オリジナル | ![orig31](articles/image/kobayashisan/scene/original_1680f_70sec.png) | 
+| 70.070 | 1000k | ![bt1000](articles/image/kobayashisan/scene/bt1000_1680f_70sec.png) | 
+| 70.070 | 500k| ![bt500](articles/image/kobayashisan/scene/bt500_1680f_70sec.png) | 
+| 80.538 | オリジナル | ![orig31](articles/image/kobayashisan/scene/original_1931f_80sec.png) | 
+| 80.538 | 1000k | ![bt1000](articles/image/kobayashisan/scene/bt1000_1931f_80sec.png) | 
+| 80.538 | 500k| ![bt500](articles/image/kobayashisan/scene/bt500_1931f_80sec.png) | 
+
+</center>
+
+
+31秒のサムネイルは500kであっても高品質を保っているようにみえる。
+色合いが変化しているのとタイムコード部分にノイズがでているが、SSIMは0.98 以上なので良い結果ということであろう。
+
+70秒付近のサムネイルは1000k, 500k ともスコアが悪かったところであるが、500kだと画面全体にブロックノイズが現れている。
+このシーンが特にスコアが悪かった箇所であるが、この結果より画像劣化の激しいシーンやノイズの載ったシーンが抽出できたことがわかる。
+
+80秒付近のシーンは1000kはそこそこ良いスコアだが500kの場合は劣化が激しいシーンである。
+500kのサムネイルをみると、全体的にモスキートノイズがのっていることがわかる。
 
 ### 結果の考察
 
