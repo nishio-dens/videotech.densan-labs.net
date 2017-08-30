@@ -65,9 +65,7 @@ end
 
 helpers do
   def render_toc(page)
-    require 'pry'
-      binding.pry
-    if config.markdown_engine == :redcarpet && config.markdown[:with_toc_data]
+    if config.markdown_engine == :redcarpet
       toc = Redcarpet::Markdown.new(Redcarpet::Render::HTML_TOC)
       text = File.read(page.source_file)
       toc.render(text)
