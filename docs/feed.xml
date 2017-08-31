@@ -14,7 +14,7 @@
     <link rel="alternate" href="http://videotech.densan-labs.net/articles/2017/08/28/yuv444-422-420.html"/>
     <id>http://videotech.densan-labs.net/articles/2017/08/28/yuv444-422-420.html</id>
     <published>2017-08-28T21:01:00+09:00</published>
-    <updated>2017-08-28T21:01:40+09:00</updated>
+    <updated>2017-09-01T00:05:39+09:00</updated>
     <author>
       <name>nishio-dens</name>
     </author>
@@ -73,7 +73,7 @@ YUV420を選択することで、データ量は444の場合に比べて小さ�
 &lt;/center&gt;&lt;/p&gt;
 
 &lt;p&gt;YCbCr と似た表現に YUV が存在する。YUVも YCbCr 同様に 輝度(Y)と色差(U,V) で色を表現する。
-ffmpegでは、YCbCr を YUV と表現していたりする。厳密には計算式が異なるため違うものであるが、この場合は同じようなものとして考えて問題ない。&lt;/p&gt;
+ffmpegでは、YCbCr を YUVXXXp と表現していたりする。&lt;/p&gt;
 
 &lt;p&gt;その他、YPbPr などの色表現が存在するが、今回はYCbCr での説明を行う。&lt;/p&gt;
 
