@@ -7,8 +7,38 @@
     <priority>0.5</priority>
   </url>
   <url>
+    <loc>http://videotech.densan-labs.net/articles/2017/09/01/analyze-video-quality.html</loc>
+    <lastmod>2017-09-01T00:07:27+09:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
     <loc>http://videotech.densan-labs.net/</loc>
     <lastmod>2017-08-27T19:55:52+09:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>http://videotech.densan-labs.net/articles/keywords/ssim.html</loc>
+    <lastmod>2017-08-27T19:36:29+09:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>http://videotech.densan-labs.net/articles/keywords/psnr.html</loc>
+    <lastmod>2017-08-27T19:36:29+09:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>http://videotech.densan-labs.net/articles/keywords/ffmpeg.html</loc>
+    <lastmod>2017-08-27T19:36:29+09:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>http://videotech.densan-labs.net/articles/keywords/noise.html</loc>
+    <lastmod>2017-08-27T19:36:29+09:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
@@ -26,6 +56,18 @@
   </url>
   <url>
     <loc>http://videotech.densan-labs.net/articles/2017.html</loc>
+    <lastmod>2017-08-27T19:36:29+09:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>http://videotech.densan-labs.net/articles/2017/09.html</loc>
+    <lastmod>2017-08-27T19:36:29+09:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>http://videotech.densan-labs.net/articles/2017/09/01.html</loc>
     <lastmod>2017-08-27T19:36:29+09:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
