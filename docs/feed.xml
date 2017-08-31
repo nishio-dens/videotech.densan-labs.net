@@ -14,7 +14,7 @@
     <link rel="alternate" href="http://videotech.densan-labs.net/articles/2017/09/01/analyze-video-quality.html"/>
     <id>http://videotech.densan-labs.net/articles/2017/09/01/analyze-video-quality.html</id>
     <published>2017-09-01T00:10:00+09:00</published>
-    <updated>2017-09-01T00:07:27+09:00</updated>
+    <updated>2017-09-01T03:57:01+09:00</updated>
     <author>
       <name>nishio-dens</name>
     </author>
@@ -275,7 +275,7 @@ ProRes変換前はMPEG2であり、MPEG2の時点ですでにノイズが乗っ�
 &lt;li&gt;Audio: aac 48000 Hz, stereo&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;p&gt;H254でエンコードを行う場合、通常CRF(Constant Rate Factor)値を調整し画質調整を行うが、
+&lt;p&gt;H264でエンコードを行う場合、通常CRF(Constant Rate Factor)値を調整し画質調整を行うが、
 今回は以下4パターンのAVR(平均ビットレート)を指定し、画質の劣化を検証する。&lt;/p&gt;
 
 &lt;ol&gt;

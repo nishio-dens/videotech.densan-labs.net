@@ -197,7 +197,7 @@ ProRes変換前はMPEG2であり、MPEG2の時点ですでにノイズが乗っ�
 - Video: h264 yuv422p 1280x720, 23.976fps
 - Audio: aac 48000 Hz, stereo
 
-H254でエンコードを行う場合、通常CRF(Constant Rate Factor)値を調整し画質調整を行うが、
+H264でエンコードを行う場合、通常CRF(Constant Rate Factor)値を調整し画質調整を行うが、
 今回は以下4パターンのAVR(平均ビットレート)を指定し、画質の劣化を検証する。
 
 1. ABR 10000k
