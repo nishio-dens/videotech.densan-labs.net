@@ -14,7 +14,7 @@
     <link rel="alternate" href="http://videotech.densan-labs.net/articles/2017/09/01/analyze-video-quality.html"/>
     <id>http://videotech.densan-labs.net/articles/2017/09/01/analyze-video-quality.html</id>
     <published>2017-09-01T00:10:00+09:00</published>
-    <updated>2017-09-01T03:57:01+09:00</updated>
+    <updated>2017-09-12T00:37:09+09:00</updated>
     <author>
       <name>nishio-dens</name>
     </author>
@@ -26,7 +26,7 @@
 
 &lt;h2 id="part-2a064f37de75b4c9"&gt;はじめに&lt;/h2&gt;
 
-&lt;p&gt;ProResやHDxHDと言った中間コーデックは無圧縮の動画並みの品質を持っているが、そのまま配信するにはデータ量が大きすぎる。
+&lt;p&gt;ProResやDNxHDと言った中間コーデックは無圧縮の動画並みの品質を持っているが、そのまま配信するにはデータ量が大きすぎる。
 動画をエンドユーザに配信するためには、コンテンツをMPEG2やH.264といった配信用のフォーマットに変換する必要がある。&lt;/p&gt;
 
 &lt;p&gt;MPEGやh264は編集には適さないが、高い映像品質を維持したままデータサイズを大幅に抑えることができるため、
